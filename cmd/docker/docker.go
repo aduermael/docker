@@ -173,6 +173,8 @@ func noArgs(cmd *cobra.Command, args []string) error {
 }
 
 func main() {
+	os.Setenv("DOCKER_HIDE_LEGACY_COMMANDS", "1")
+
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
 	logrus.SetOutput(stderr)
