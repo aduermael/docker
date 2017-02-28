@@ -15,7 +15,9 @@ import (
 	"github.com/docker/docker/cli/debug"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/dockerversion"
+	sandbox "github.com/docker/docker/lua-sandbox"
 	"github.com/docker/docker/pkg/term"
+	project "github.com/docker/docker/proj"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -163,7 +165,56 @@ func main() {
 	logrus.SetOutput(stderr)
 
 	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
+
+	// see if we're in the context of a Docker project or not
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return
+	}
+	proj, err := project.Get(wd)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return
+	}
+
 	cmd := newDockerCommand(dockerCli)
+
+	// sandbox is used only if we are in the context of a docker project
+	if proj != nil {
+		// create Lua sandbox
+		sb, err := sandbox.NewSandbox(proj, dockerCli)
+
+		if err != nil {
+			fmt.Fprintln(stderr, err.Error())
+			return
+		}
+
+		// this is required to initialize dockerCli
+		// (done in PersistentPreRunE when not using Lua sandbox)
+		opts := cliflags.NewClientOptions()
+		// flags have already been initialized when calling newDockerCommand
+		// just getting pointer to them
+		flags := cmd.Flags()
+		opts.Common.SetDefaultOptions(flags)
+		dockerPreRun(opts)
+		if err = dockerCli.Initialize(opts); err != nil {
+			fmt.Fprintln(stderr, err.Error())
+			return
+		}
+
+		// exec command from sandbox or continue
+		found, err := sb.Exec(os.Args[1:])
+		if found {
+			if err != nil {
+				fmt.Fprintln(stderr, err.Error())
+				return
+			}
+			analytics.Event("command", map[string]interface{}{"name": "docker " + os.Args[1], "lua": true})
+			analytics.Close()
+			return
+		}
+	}
 
 	if err := cmd.Execute(); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
