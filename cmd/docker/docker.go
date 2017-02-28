@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/analytics"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
@@ -41,6 +42,15 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 			return dockerCli.ShowHelp(cmd, args)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+
+			completeCmdName := cmd.Name()
+			cobracmd := cmd
+			for cobracmd.HasParent() {
+				cobracmd = cobracmd.Parent()
+				completeCmdName = cobracmd.Name() + " " + completeCmdName
+			}
+			analytics.Event("command", map[string]interface{}{"name": completeCmdName, "lua": false})
+
 			// daemon command is special, we redirect directly to another binary
 			if cmd.Name() == "daemon" {
 				return nil
@@ -52,6 +62,9 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 				return err
 			}
 			return isSupported(cmd, dockerCli.Client().ClientVersion(), dockerCli.OSType(), dockerCli.HasExperimental())
+		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			analytics.Close()
 		},
 	}
 	cli.SetupRootCommand(cmd)
