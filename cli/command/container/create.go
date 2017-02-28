@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/cli/command/image"
 	apiclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
+	project "github.com/docker/docker/proj"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -150,6 +151,21 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, containe
 	hostConfig := containerConfig.HostConfig
 	networkingConfig := containerConfig.NetworkingConfig
 	stderr := dockerCli.Err()
+
+	// add label to identify project if needed
+	// see if we're in the context of a Docker project or not
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	proj, err := project.Get(wd)
+	if err != nil {
+		return nil, err
+	}
+	if proj != nil {
+		config.Labels["docker.project.id:"+proj.Config.ID] = ""
+		config.Labels["docker.project.name:"+proj.Config.Name] = ""
+	}
 
 	var (
 		containerIDFile *cidFile

@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -12,6 +13,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
+	project "github.com/docker/docker/proj"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 )
@@ -93,6 +95,21 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 		EnableIPv6:     opts.ipv6,
 		Attachable:     opts.attachable,
 		Labels:         runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
+	}
+
+	// add label to identify project if needed
+	// see if we're in the context of a Docker project or not
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	proj, err := project.Get(wd)
+	if err != nil {
+		return err
+	}
+	if proj != nil {
+		nc.Labels["docker.project.id:"+proj.Config.ID] = ""
+		nc.Labels["docker.project.name:"+proj.Config.Name] = ""
 	}
 
 	resp, err := client.NetworkCreate(context.Background(), opts.name, nc)

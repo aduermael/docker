@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/system"
+	project "github.com/docker/docker/proj"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -45,6 +47,21 @@ func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
+
+	// add label to identify project if needed
+	// see if we're in the context of a Docker project or not
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	proj, err := project.Get(wd)
+	if err != nil {
+		return err
+	}
+	if proj != nil {
+		options.labels.Set("docker.project.id:" + proj.Config.ID)
+		options.labels.Set("docker.project.name:" + proj.Config.Name)
+	}
 
 	var in io.Reader = dockerCli.In()
 	if options.file != "-" {

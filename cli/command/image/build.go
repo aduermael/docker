@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
+	project "github.com/docker/docker/proj"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
@@ -282,6 +283,21 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		NetworkMode:    options.networkMode,
 		Squash:         options.squash,
 		ExtraHosts:     options.extraHosts.GetAll(),
+	}
+
+	// add label to identify project if needed
+	// see if we're in the context of a Docker project or not
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	proj, err := project.Get(wd)
+	if err != nil {
+		return err
+	}
+	if proj != nil {
+		buildOptions.Labels["docker.project.id:"+proj.Config.ID] = ""
+		buildOptions.Labels["docker.project.name:"+proj.Config.Name] = ""
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

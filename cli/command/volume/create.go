@@ -2,11 +2,13 @@ package volume
 
 import (
 	"fmt"
+	"os"
 
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
+	project "github.com/docker/docker/proj"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -57,6 +59,21 @@ func runCreate(dockerCli command.Cli, opts createOptions) error {
 		DriverOpts: opts.driverOpts.GetAll(),
 		Name:       opts.name,
 		Labels:     runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
+	}
+
+	// add label to identify project if needed
+	// see if we're in the context of a Docker project or not
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	proj, err := project.Get(wd)
+	if err != nil {
+		return err
+	}
+	if proj != nil {
+		volReq.Labels["docker.project.id:"+proj.Config.ID] = ""
+		volReq.Labels["docker.project.name:"+proj.Config.Name] = ""
 	}
 
 	vol, err := client.VolumeCreate(context.Background(), volReq)
