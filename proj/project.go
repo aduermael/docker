@@ -159,6 +159,15 @@ func Get(path string) (*Project, error) {
 	return project, nil
 }
 
+// GetForWd returns project for current working directory
+func GetForWd() (*Project, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return Get(wd)
+}
+
 // Load loads a project at the given path
 // The path needs to point to a directory that
 // contains a .dockerproj directory, and that
