@@ -3,7 +3,6 @@ package network
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -97,15 +96,11 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 		Labels:         runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
 	}
 
-	// add label to identify project if needed
-	// see if we're in the context of a Docker project or not
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	proj, err := project.Get(wd)
-	if err != nil {
-		return err
+	// Add label to identify project if needed.
+	// Check whether we are in the context of a Docker project.
+	proj, pErr := project.GetForWd()
+	if pErr != nil {
+		return pErr
 	}
 	if proj != nil {
 		nc.Labels["docker.project.id:"+proj.Config.ID] = ""

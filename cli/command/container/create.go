@@ -152,15 +152,11 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, containe
 	networkingConfig := containerConfig.NetworkingConfig
 	stderr := dockerCli.Err()
 
-	// add label to identify project if needed
-	// see if we're in the context of a Docker project or not
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	proj, err := project.Get(wd)
-	if err != nil {
-		return nil, err
+	// Add label to identify project if needed.
+	// Check whether we are in the context of a Docker project.
+	proj, pErr := project.GetForWd()
+	if pErr != nil {
+		return nil, pErr
 	}
 	if proj != nil {
 		config.Labels["docker.project.id:"+proj.Config.ID] = ""

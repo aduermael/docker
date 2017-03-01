@@ -2,7 +2,6 @@ package volume
 
 import (
 	"fmt"
-	"os"
 
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/cli"
@@ -61,15 +60,11 @@ func runCreate(dockerCli command.Cli, opts createOptions) error {
 		Labels:     runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
 	}
 
-	// add label to identify project if needed
-	// see if we're in the context of a Docker project or not
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	proj, err := project.Get(wd)
-	if err != nil {
-		return err
+	// Add label to identify project if needed.
+	// Check whether we are in the context of a Docker project.
+	proj, pErr := project.GetForWd()
+	if pErr != nil {
+		return pErr
 	}
 	if proj != nil {
 		volReq.Labels["docker.project.id:"+proj.Config.ID] = ""

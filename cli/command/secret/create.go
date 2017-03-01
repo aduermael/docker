@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
@@ -48,15 +47,11 @@ func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error 
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	// add label to identify project if needed
-	// see if we're in the context of a Docker project or not
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	proj, err := project.Get(wd)
-	if err != nil {
-		return err
+	// Add label to identify project if needed.
+	// Check whether we are in the context of a Docker project.
+	proj, pErr := project.GetForWd()
+	if pErr != nil {
+		return pErr
 	}
 	if proj != nil {
 		options.labels.Set("docker.project.id:" + proj.Config.ID)
