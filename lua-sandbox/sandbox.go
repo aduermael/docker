@@ -9,8 +9,6 @@ import (
 	project "github.com/docker/docker/proj"
 	luajson "github.com/yuin/gopher-json"
 	lua "github.com/yuin/gopher-lua"
-
-	"github.com/docker/docker/cli/command"
 )
 
 // errors
@@ -18,27 +16,21 @@ var (
 	errLuaStateNil      = errors.New("Lua state is nil")
 	errLuaStateCreation = errors.New("Lua state creation error")
 	errDockerProjectNil = errors.New("docker project is nil")
-	errDockerCliNil     = errors.New("docker cli is nil")
 	errLuaStateReset    = errors.New("Lua state reset error")
 )
 
 // Sandbox type definition
 type Sandbox struct {
 	luaState      *lua.LState
-	dockerCli     *command.DockerCli
 	dockerProject *project.Project
 }
 
 // NewSandbox creates a new Lua Sandbox.
-func NewSandbox(proj *project.Project, cli *command.DockerCli) (*Sandbox, error) {
+func NewSandbox(proj *project.Project) (*Sandbox, error) {
 	var err error
 
 	if proj == nil {
 		return nil, errDockerProjectNil
-	}
-
-	if cli == nil {
-		return nil, errDockerCliNil
 	}
 
 	// create Lua state
@@ -56,7 +48,6 @@ func NewSandbox(proj *project.Project, cli *command.DockerCli) (*Sandbox, error)
 	result := &Sandbox{
 		luaState:      luaState,
 		dockerProject: proj,
-		dockerCli:     cli,
 	}
 
 	// populate Lua state
