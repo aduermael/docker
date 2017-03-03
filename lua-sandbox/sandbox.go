@@ -41,9 +41,6 @@ func NewSandbox(proj *project.Project, cli *command.DockerCli) (*Sandbox, error)
 		return nil, errDockerCliNil
 	}
 
-	// remove all environment variables
-	os.Clearenv()
-
 	// create Lua state
 	luaState := lua.NewState()
 	if luaState == nil {
@@ -359,6 +356,8 @@ func (s *Sandbox) populateLuaState(proj *project.Project) error {
 	if osTbl, ok := osLv.(*lua.LTable); ok {
 		osTbl.RawSetString("username", s.luaState.NewFunction(s.username))
 		osTbl.RawSetString("home", s.luaState.NewFunction(s.home))
+		osTbl.RawSetString("setEnv", s.luaState.NewFunction(s.setEnv))
+		osTbl.RawSetString("getEnv", s.luaState.NewFunction(s.getEnv))
 	}
 
 	// docker
@@ -404,10 +403,6 @@ func (s *Sandbox) populateLuaState(proj *project.Project) error {
 		dockerProjectLuaTable.RawSetString("root", lua.LString(proj.RootDirPath))
 		dockerLuaTable.RawSetString("project", dockerProjectLuaTable)
 	}
-
-	// docker.env
-	dockerEnvLuaTable := s.luaState.CreateTable(0, 0)
-	dockerLuaTable.RawSetString("env", dockerEnvLuaTable)
 
 	err := s.addTable("docker", dockerLuaTable)
 	if err != nil {
