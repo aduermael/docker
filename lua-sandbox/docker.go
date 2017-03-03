@@ -3,9 +3,7 @@ package sandbox
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/docker/docker/api"
@@ -21,13 +19,6 @@ import (
 // dockerCmd executes the docker command passed as argument.
 func (s *Sandbox) dockerCmd(L *lua.LState) int {
 	var err error
-
-	// apply docker environment variables
-	err = s.flushEnvAndApplyDockerEnv()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
 
 	cmd := newDockerCommand(s.dockerCli)
 
@@ -64,13 +55,6 @@ func (s *Sandbox) dockerCmd(L *lua.LState) int {
 // example: local out, err = dockerSilentCmd('run myimage')
 func (s *Sandbox) dockerSilentCmd(L *lua.LState) int {
 	var err error
-
-	// apply docker environment variables
-	err = s.flushEnvAndApplyDockerEnv()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
 
 	// retrieve parameter
 	argsStr, found, err := popStringParam(L)
@@ -121,13 +105,6 @@ func (s *Sandbox) dockerSilentCmd(L *lua.LState) int {
 // docker.container.list(arguments string)
 func (s *Sandbox) dockerContainerList(L *lua.LState) int {
 	var err error
-
-	// apply docker environment variables
-	err = s.flushEnvAndApplyDockerEnv()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
 
 	// retrieve parameter
 	argsStr, found, err := popStringParam(L)
@@ -255,13 +232,6 @@ func (s *Sandbox) dockerContainerList(L *lua.LState) int {
 func (s *Sandbox) dockerImageList(L *lua.LState) int {
 	var err error
 
-	// apply docker environment variables
-	err = s.flushEnvAndApplyDockerEnv()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-
 	// retrieve string argument
 	argsStr, found, err := popStringParam(L)
 	if err != nil {
@@ -356,13 +326,6 @@ func (s *Sandbox) dockerImageList(L *lua.LState) int {
 func (s *Sandbox) dockerVolumeList(L *lua.LState) int {
 	var err error
 
-	// apply docker environment variables
-	err = s.flushEnvAndApplyDockerEnv()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-
 	// retrieve string argument
 	argsStr, found, err := popStringParam(L)
 	if err != nil {
@@ -443,13 +406,6 @@ func (s *Sandbox) dockerVolumeList(L *lua.LState) int {
 // docker.network.list(arguments string)
 func (s *Sandbox) dockerNetworkList(L *lua.LState) int {
 	var err error
-
-	// apply docker environment variables
-	err = s.flushEnvAndApplyDockerEnv()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
 
 	// retrieve string argument
 	argsStr, found, err := popStringParam(L)
@@ -538,13 +494,6 @@ func (s *Sandbox) dockerNetworkList(L *lua.LState) int {
 func (s *Sandbox) dockerServiceList(L *lua.LState) int {
 	var err error
 
-	// apply docker environment variables
-	err = s.flushEnvAndApplyDockerEnv()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-
 	// retrieve string argument
 	argsStr, found, err := popStringParam(L)
 	if err != nil {
@@ -622,13 +571,6 @@ func (s *Sandbox) dockerServiceList(L *lua.LState) int {
 func (s *Sandbox) dockerSecretList(L *lua.LState) int {
 	var err error
 
-	// apply docker environment variables
-	err = s.flushEnvAndApplyDockerEnv()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-
 	// retrieve string argument
 	argsStr, found, err := popStringParam(L)
 	if err != nil {
@@ -695,52 +637,4 @@ func (s *Sandbox) dockerSecretList(L *lua.LState) int {
 
 	s.luaState.Push(secretsLuaTable)
 	return 1
-}
-
-// flushEnvAndApplyDockerEnv removes all environment variables,
-// and replace them with the content of the "docker.env" Lua table.
-func (s *Sandbox) flushEnvAndApplyDockerEnv() error {
-
-	// clear process' environment
-	os.Clearenv()
-
-	// get pointer on the "docker" Lua table
-	dockerTable, err := s.getTable("docker")
-	if err != nil {
-		return err
-	}
-	if dockerTable == nil {
-		return nil
-	}
-
-	// get pointer on the "docker.env" Lua table
-	dockerEnvTable := dockerTable.RawGetString("env")
-	if dockerEnvTable == nil {
-		return errors.New("failed to retrieve docker.env value")
-	}
-
-	if dockerEnvTable.Type() == lua.LTTable {
-		env, ok := dockerEnvTable.(*lua.LTable)
-		if ok == false {
-			return errors.New("failed to retrieve docker.env value")
-		}
-		env.ForEach(func(k lua.LValue, v lua.LValue) {
-			// check they are both strings
-			if k != nil && v != nil {
-				if k.Type() == lua.LTString && v.Type() == lua.LTString {
-					kstr, kok := k.(lua.LString)
-					vstr, sok := v.(lua.LString)
-					if kok && sok {
-						os.Setenv(string(kstr), string(vstr))
-					}
-				}
-			}
-		})
-		return nil // no error
-	}
-
-	if dockerEnvTable.Type() == lua.LTNil {
-		return errors.New("docker.env Lua table is not initialized")
-	}
-	return errors.New("failed to retrieve docker.env value")
 }
