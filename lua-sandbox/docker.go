@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/command"
+	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/term"
 	shellwords "github.com/mattn/go-shellwords"
@@ -20,7 +21,8 @@ import (
 func (s *Sandbox) dockerCmd(L *lua.LState) int {
 	var err error
 
-	cmd := newDockerCommand(s.dockerCli)
+	dockerCli := newDockerCli()
+	cmd := newDockerCommand(dockerCli)
 
 	// retrieve parameter
 	argsStr, found, err := popStringParam(L)
@@ -74,11 +76,10 @@ func (s *Sandbox) dockerSilentCmd(L *lua.LState) int {
 	}
 
 	stdin, _, _ := term.StdStreams()
-
 	outbuf := new(bytes.Buffer)
 	errbuf := new(bytes.Buffer)
-
 	dockerCli := command.NewDockerCli(stdin, outbuf, errbuf)
+	dockerCli.Initialize(cliflags.NewClientOptions())
 	cmd := newDockerCommand(dockerCli)
 
 	cmd.SetArgs(args)
@@ -147,7 +148,8 @@ func (s *Sandbox) dockerContainerList(L *lua.LState) int {
 
 	ctx := context.Background()
 
-	containers, err := s.dockerCli.Client().ContainerList(ctx, *listOptions)
+	dockerCli := newDockerCli()
+	containers, err := dockerCli.Client().ContainerList(ctx, *listOptions)
 	if err != nil {
 		fmt.Println("ERROR:", err.Error())
 		L.RaiseError(err.Error())
@@ -274,7 +276,8 @@ func (s *Sandbox) dockerImageList(L *lua.LState) int {
 		Filters: filters,
 	}
 
-	images, err := s.dockerCli.Client().ImageList(ctx, options)
+	dockerCli := newDockerCli()
+	images, err := dockerCli.Client().ImageList(ctx, options)
 	if err != nil {
 		L.RaiseError(err.Error())
 		return 0
@@ -352,9 +355,8 @@ func (s *Sandbox) dockerVolumeList(L *lua.LState) int {
 	flags.VarP(&opts.filter, "filter", "f", "Provide filter values (e.g. 'dangling=true')")
 	flags.Parse(argsArr)
 
-	// contact docker API
-	client := s.dockerCli.Client()
-	volumes, err := client.VolumeList(context.Background(), opts.filter.Value())
+	dockerCli := newDockerCli()
+	volumes, err := dockerCli.Client().VolumeList(context.Background(), opts.filter.Value())
 	if err != nil {
 		L.RaiseError(err.Error())
 		return 0
@@ -434,10 +436,9 @@ func (s *Sandbox) dockerNetworkList(L *lua.LState) int {
 	flags.VarP(&opts.filter, "filter", "f", "Provide filter values (e.g. 'driver=bridge')")
 	flags.Parse(argsArr)
 
-	// contact docker API
-	client := s.dockerCli.Client()
+	dockerCli := newDockerCli()
 	options := types.NetworkListOptions{Filters: opts.filter.Value()}
-	networks, err := client.NetworkList(context.Background(), options)
+	networks, err := dockerCli.Client().NetworkList(context.Background(), options)
 	if err != nil {
 		L.RaiseError(err.Error())
 		return 0
@@ -520,10 +521,9 @@ func (s *Sandbox) dockerServiceList(L *lua.LState) int {
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 	flags.Parse(argsArr)
 
-	// contact docker API
-	client := s.dockerCli.Client()
+	dockerCli := newDockerCli()
 	options := types.ServiceListOptions{Filters: opts.filter.Value()}
-	services, err := client.ServiceList(context.Background(), options)
+	services, err := dockerCli.Client().ServiceList(context.Background(), options)
 	if err != nil {
 		L.RaiseError(err.Error())
 		return 0
@@ -595,10 +595,9 @@ func (s *Sandbox) dockerSecretList(L *lua.LState) int {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display IDs")
 	flags.Parse(argsArr)
 
-	// contact docker API
-	client := s.dockerCli.Client()
+	dockerCli := newDockerCli()
 	options := types.SecretListOptions{}
-	secrets, err := client.SecretList(context.Background(), options)
+	secrets, err := dockerCli.Client().SecretList(context.Background(), options)
 	if err != nil {
 		L.RaiseError(err.Error())
 		return 0
@@ -637,4 +636,13 @@ func (s *Sandbox) dockerSecretList(L *lua.LState) int {
 
 	s.luaState.Push(secretsLuaTable)
 	return 1
+}
+
+func newDockerCli() *command.DockerCli {
+	// it's necessary to (re-)initiate the *command.DockerCli to consider
+	// environment variable changes between to docker function calls
+	stdin, stdout, stderr := term.StdStreams()
+	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
+	dockerCli.Initialize(cliflags.NewClientOptions())
+	return dockerCli
 }
