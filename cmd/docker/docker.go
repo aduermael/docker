@@ -198,7 +198,7 @@ func main() {
 	// sandbox is used only if we are in the context of a docker project
 	if proj != nil {
 		// create Lua sandbox
-		sb, err := sandbox.NewSandbox(proj, dockerCli)
+		sb, err := sandbox.NewSandbox(proj)
 
 		if err != nil {
 			fmt.Fprintln(stderr, err.Error())
