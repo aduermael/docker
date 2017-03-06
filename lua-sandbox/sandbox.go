@@ -118,6 +118,18 @@ func (s *Sandbox) Exec(args []string) (found bool, err error) {
 	return
 }
 
+// ContainsGlobalFunction indicates whether a function exists in the sandbox
+func (s *Sandbox) ContainsGlobalFunction(name string) bool {
+	value := s.luaState.GetGlobal(name)
+	if value != lua.LNil {
+		_, ok := value.(*lua.LFunction)
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
 // doFile loads Lua file into Sandbox's Lua state
 func (s *Sandbox) doFile(fpath string) (found bool, err error) {
 	if s.luaState == nil {
