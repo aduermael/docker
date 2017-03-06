@@ -83,11 +83,11 @@ func hasManagementSubCommands(cmd *cobra.Command) bool {
 // hasProjectDefinedCommands indicates whether user-defined commands are available.
 // For now, they are only available in the context of a docker project.
 func hasProjectDefinedCommands(cmd *cobra.Command) bool {
-	return len(getProjectDefinedFunctions()) > 0
+	return len(GetProjectDefinedFunctions()) > 0
 }
 
 func projectDefinedCommands(cmd *cobra.Command) []UDFunction {
-	return getProjectDefinedFunctions()
+	return GetProjectDefinedFunctions()
 }
 
 func operationSubCommands(cmd *cobra.Command) []*cobra.Command {
@@ -155,7 +155,8 @@ type UDFunction struct {
 	Padding     int
 }
 
-func getProjectDefinedFunctions() []UDFunction {
+// GetProjectDefinedFunctions lists functions defined in dockerscript file
+func GetProjectDefinedFunctions() []UDFunction {
 	// test if we are in the context of a project
 	wd, err := os.Getwd()
 	if err != nil {

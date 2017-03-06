@@ -218,6 +218,22 @@ func main() {
 			return
 		}
 
+		// check for prohibited command override
+		overriddenCmds, err := overriddenCommands(os.Args[1:], cmd)
+		if err != nil {
+			fmt.Fprintln(stderr, err.Error())
+			return
+		}
+		if overriddenCmds != nil && len(overriddenCmds) > 0 {
+			errorMessage := "ERROR: one or several Docker commands are overridden in Dockerscript ["
+			for _, c := range overriddenCmds {
+				errorMessage = errorMessage + c + ","
+			}
+			errorMessage = errorMessage[:len(errorMessage)-1] + "]"
+			fmt.Fprintln(stderr, errors.New(errorMessage))
+			return
+		}
+
 		// exec command from sandbox or continue
 		found, err := sb.Exec(os.Args[1:])
 		if found {
@@ -359,4 +375,27 @@ func hasTags(cmd *cobra.Command) bool {
 	}
 
 	return false
+}
+
+// overriddenCommands ...
+func overriddenCommands(args []string, cmd *cobra.Command) ([]string, error) {
+	if cmd == nil {
+		return nil, errors.New("cmd is nil")
+	}
+
+	overriddenFuncs := make([]string, 0)
+
+	// all Lua global functions
+	UDFunctions := cli.GetProjectDefinedFunctions()
+	for _, f := range UDFunctions {
+		mainCmds := cmd.Commands()
+		for _, mainCmd := range mainCmds {
+			if f.Name == mainCmd.Name() {
+				overriddenFuncs = append(overriddenFuncs, f.Name)
+				break
+			}
+		}
+	}
+
+	return overriddenFuncs, nil
 }
