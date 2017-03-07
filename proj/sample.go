@@ -1,52 +1,74 @@
 package project
 
-const dockerCommandsSample = `# this is a YAML sample`
+const dockerCommandsSample = `status:
+  description: "Lists Docker entities involved in project"
+  function: status`
 
-const dockerscriptSample = `-- This file defines Docker project commands.
--- All top level functions are available using ` + "`docker FUNCTION_NAME`" + ` from within project directory.
--- Default Docker commands can be overridden using identical names.
+const dockerscriptSample = `-- Dockerscript
+-- A Dockerscript is a script written in Lua, executed in the Docker sandbox.
+-- Documentation: http://dockerproj.duermael.com
 
--- Lists project containers
-function ps(args)
-local argsStr = utils.join(args, " ")
-docker.cmd('ps ' .. argsStr .. ' --filter label=docker.project.id:' .. docker.project.id)
-end
+-- Lists Docker entities involved in project
+function status()
+	local dockerhost = os.getEnv("DOCKER_HOST")
+	if dockerhost == "" then
+		dockerhost = "local"
+	end
+	print("Docker host: " .. dockerhost)
 
--- Stops running project containers
-function stop(args)
--- retrieve command args
-local argsStr = utils.join(args, " ")
--- stop project containers
-local containers = docker.container.list('--filter label=docker.project.id:' .. docker.project.id)
-for i, container in ipairs(containers) do
-docker.cmd('stop ' .. argsStr .. ' ' .. container.name)
-end
-end
+	local success, services = pcall(docker.service.list, '--filter label=docker.project.id:' .. docker.project.id)
+	local swarmMode = success
 
--- Removes project containers, images, volumes & networks
-function clean()
--- stop project containers
-stop()
--- remove project containers
-local containers = docker.container.list('-a --filter label=docker.project.id:' .. docker.project.id)
-for i, container in ipairs(containers) do
-docker.cmd('rm ' .. container.name)
-end
--- remove project images
-local images = docker.image.list('--filter label=docker.project.id:' .. docker.project.id)
-for i, image in ipairs(images) do
-docker.cmd('rmi ' .. image.id)
-end
--- remove project volumes
-local volumes = docker.volume.list('--filter label=docker.project.id:' .. docker.project.id)
-for i, volume in ipairs(volumes) do
-docker.cmd('volume rm ' .. volume.name)
-end
--- remove project networks
-local networks = docker.network.list('--filter label=docker.project.id:' .. docker.project.id)
-for i, network in ipairs(networks) do
-docker.cmd('network rm ' .. network.id)
-end
+	if swarmMode then
+		print("Services:")
+		if #services == 0 then
+			print("none")
+		else
+			for i, service in ipairs(services) do
+				print(" - " .. service.name .. " image: " .. service.image)
+			end
+		end
+	else
+		local containers = docker.container.list('-a --filter label=docker.project.id:' .. docker.project.id)
+		print("Containers:")
+		if #containers == 0 then
+			print("none")
+		else
+			for i, container in ipairs(containers) do
+				print(" - " .. container.name .. " (" .. container.status .. ") image: " .. container.image)
+			end
+		end
+	end
+
+	local volumes = docker.volume.list('--filter label=docker.project.id:' .. docker.project.id)
+	print("Volumes:")
+	if #volumes == 0 then
+		print("none")
+	else
+		for i, volume in ipairs(volumes) do
+			print(" - " .. volume.name .. " (" .. volume.driver .. ")")
+		end
+	end
+
+	local networks = docker.network.list('--filter label=docker.project.id:' .. docker.project.id)
+	print("Networks:")
+	if #networks == 0 then
+		print("none")
+	else
+		for i, network in ipairs(networks) do
+			print(" - " .. network.name .. " (" .. network.driver .. ")")
+		end
+	end
+
+	local images = docker.network.list('--filter label=docker.project.id:' .. docker.project.id)
+	print("Images (built within project):")
+	if #networks == 0 then
+		print("none")
+	else
+		for i, image in ipairs(images) do
+			print(" - " .. image.name)
+		end
+	end
 end
 
 ----------------
@@ -73,5 +95,4 @@ end
 end
 return str
 end
-
 `
