@@ -1,11 +1,12 @@
 package project
 
-const projectCommandsHeader = `-- This file defines Docker project commands.
+const dockerCommandsSample = `# this is a YAML sample`
+
+const dockerscriptSample = `-- This file defines Docker project commands.
 -- All top level functions are available using ` + "`docker FUNCTION_NAME`" + ` from within project directory.
 -- Default Docker commands can be overridden using identical names.
-`
 
-const projectCommandsSample = `-- Lists project containers
+-- Lists project containers
 function ps(args)
 local argsStr = utils.join(args, " ")
 docker.cmd('ps ' .. argsStr .. ' --filter label=docker.project.id:' .. docker.project.id)

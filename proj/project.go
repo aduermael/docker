@@ -63,18 +63,24 @@ func Init(dir, name string) error {
 
 	// create default dockerscript.lua
 	projectNoSampleEnvVarValue := os.Getenv(envVarDockerProjectNoSample)
-	// we install the dockerscript sample except if env var value is "1".
-	scriptedCommandsContent := []byte(projectCommandsHeader)
+	// we install a sample except if env var value is "1".
 	if projectNoSampleEnvVarValue != "1" {
-		scriptedCommandsContent = append(scriptedCommandsContent, []byte(projectCommandsSample)...)
-	}
-
-	scriptedCommands := filepath.Join(projectDir, "dockerscript.lua")
-	if err := ioutil.WriteFile(
-		scriptedCommands,
-		scriptedCommandsContent,
-		0644); err != nil {
-		return err
+		// install docker-commands.yaml sample
+		dockerCommands := filepath.Join(projectDir, "docker-commands.yaml")
+		if err := ioutil.WriteFile(
+			dockerCommands,
+			[]byte(dockerCommandsSample),
+			0644); err != nil {
+			return err
+		}
+		// install dockerscript.lua sample
+		scriptedCommands := filepath.Join(projectDir, "dockerscript.lua")
+		if err := ioutil.WriteFile(
+			scriptedCommands,
+			[]byte(dockerscriptSample),
+			0644); err != nil {
+			return err
+		}
 	}
 
 	return nil
