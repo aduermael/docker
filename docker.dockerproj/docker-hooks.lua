@@ -9,9 +9,10 @@ function build()
 end
 
 -- Mounts your source in an interactive container
-function dev()
+function dev(args)
 	build()
-	docker.cmd('run -v ' .. docker.project.root .. ':/go/src/github.com/docker/docker --privileged -i -t docker bash')
+	local argsStr = utils.join(args, " ")
+	docker.cmd('run ' .. argsStr .. ' -v ' .. docker.project.root .. ':/go/src/github.com/docker/docker --privileged -i -t docker bash')
 end
 
 -- Exports client binaries for all platforms
