@@ -12,7 +12,7 @@ end
 function dev(args)
 	build()
 	local argsStr = utils.join(args, " ")
-	docker.cmd('run ' .. argsStr .. ' -v ' .. docker.project.root .. ':/go/src/github.com/docker/docker --privileged -i -t docker bash')
+	docker.cmd('run ' .. argsStr .. ' -v /var/run/docker.sock:/var/run/docker.sock -v ' .. docker.project.root .. ':/go/src/github.com/docker/docker --privileged -i -t docker bash')
 end
 
 -- Exports client binaries for all platforms
