@@ -173,10 +173,10 @@ func GetProjectDefinedFunctions() []UDFunction {
 	// we are in the context of a project,
 	// we have to check if any there is any user-defined function.
 	udFunctions := make([]UDFunction, 0)
-	dockerHooksPath := filepath.Join(proj.DockerprojDirPath(), "docker-hooks.lua")
-	if fi, err := os.Stat(dockerHooksPath); err == nil {
+	dockerscriptFilePath := filepath.Join(proj.DockerprojDirPath(), "dockerscript.lua")
+	if fi, err := os.Stat(dockerscriptFilePath); err == nil {
 		if fi.IsDir() == false {
-			fileBytes, err := ioutil.ReadFile(dockerHooksPath)
+			fileBytes, err := ioutil.ReadFile(dockerscriptFilePath)
 			if err != nil {
 				return make([]UDFunction, 0)
 			}
