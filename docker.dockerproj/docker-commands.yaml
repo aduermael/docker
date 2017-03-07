@@ -1,0 +1,3 @@
+status:
+  description: "Lists Docker entities involved in project"
+  function: status
