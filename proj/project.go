@@ -18,6 +18,10 @@ const (
 	projectConfigFileName = "config.json"
 	// name of the main dockerscript file
 	dockerscriptFileName = "dockerscript.lua"
+	// name of user specific dockerscripts (%s is replaced by the username)
+	userDockerScriptFileName = "%s-dockerscript.lua"
+	// directory wher to put user specific scripts
+	userDockerScriptDirName = "devs"
 	// env var that can prevent `docker init` from dumping samples
 	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
 
@@ -36,12 +40,14 @@ type Project struct {
 	RootDirPath string
 }
 
-// DockerprojDirPath returns the path of the *.dockerproj directory
-func (p *Project) DockerprojDirPath() string {
+// DockerProjectDirPath returns the path of the docker.project directory
+func (p *Project) DockerProjectDirPath() string {
+
 	return filepath.Join(p.RootDirPath, projectDirName)
 }
 
-// DockerscriptFileName returns the name of the dockerscript file to be loaded by the Lua sandbox
+// DockerscriptFileName returns the name of the default dockerscript file to be
+// loaded by the Lua sandbox
 func (p *Project) DockerscriptFileName() string {
 	return dockerscriptFileName
 }
@@ -54,6 +60,7 @@ type Config struct {
 
 // Init initiates a new project
 func Init(dir, name string) error {
+	// create docker.project directory
 	projectDir := filepath.Join(dir, projectDirName)
 	if err := os.MkdirAll(projectDir, 0777); err != nil {
 		return err
@@ -61,7 +68,6 @@ func Init(dir, name string) error {
 	config := Config{Name: name, ID: ""}
 
 	// create project id (random hash)
-
 	data := make([]byte, 64)
 	_, err := rand.Read(data)
 	if err != nil {
@@ -69,18 +75,18 @@ func Init(dir, name string) error {
 	}
 	config.ID = fmt.Sprintf("%x", sha256.Sum256(data))
 
+	// write config.json
 	jsonBytes, err := json.Marshal(&config)
 	if err != nil {
 		return err
 	}
-
 	configFile := filepath.Join(projectDir, projectConfigFileName)
 	err = ioutil.WriteFile(configFile, jsonBytes, 0644)
 	if err != nil {
 		return err
 	}
 
-	// create default dockerscript.lua
+	// install sample files
 	projectNoSampleEnvVarValue := os.Getenv(envVarDockerProjectNoSample)
 	// we install a sample except if env var value is "1".
 	if projectNoSampleEnvVarValue != "1" {
@@ -94,8 +100,6 @@ func Init(dir, name string) error {
 		// 	return err
 		// }
 
-		// TODO: install user project file
-
 		// install dockerscript.lua sample
 		scriptedCommands := filepath.Join(projectDir, dockerscriptFileName)
 		if err := ioutil.WriteFile(
@@ -104,6 +108,8 @@ func Init(dir, name string) error {
 			0644); err != nil {
 			return err
 		}
+
+		// TODO: install user specific dockerscript in devs directory
 	}
 
 	return nil
