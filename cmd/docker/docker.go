@@ -188,6 +188,8 @@ func main() {
 		return
 	}
 
+	cmd := newDockerCommand(dockerCli)
+
 	// sandbox is used only if we are in the context of a docker project
 	if proj != nil && len(os.Args) > 1 {
 		cmdName := os.Args[1]
@@ -200,13 +202,20 @@ func main() {
 		}
 
 		if projectCommandExists {
-			// check if this command can be overridden
-			if project.IsCommandOverrideAllowed(cmdName) == false {
-				errorMessage := "error: " + cmdName + " can't be overridden.\n" +
-					"this is the list of docker commands that can be overridden:\n" +
-					strings.Join(project.CommandsAllowedToBeOverridden, ", ")
-				fmt.Fprintln(stderr, errorMessage)
-				os.Exit(1)
+
+			mainCmds := cmd.Commands()
+			for _, mainCmd := range mainCmds {
+				if cmdName == mainCmd.Name() {
+					// check if this override is allowed
+					if project.IsCommandOverrideAllowed(cmdName) == false {
+						errorMessage := "error: " + cmdName + " can't be overridden.\n" +
+							"this is the list of docker commands that can be overridden:\n" +
+							strings.Join(project.CommandsAllowedToBeOverridden, ", ")
+						fmt.Fprintln(stderr, errorMessage)
+						os.Exit(1)
+					}
+					break
+				}
 			}
 
 			// create Lua sandbox
@@ -233,8 +242,6 @@ func main() {
 		}
 		// project command doesn't exist
 	}
-
-	cmd := newDockerCommand(dockerCli)
 
 	if err := cmd.Execute(); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
