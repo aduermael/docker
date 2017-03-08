@@ -74,6 +74,10 @@ type Config struct {
 
 // Init initiates a new project
 func Init(dir, name string) error {
+	if isProjectRoot(dir) {
+		return fmt.Errorf("target directory already is the root of a Docker project")
+	}
+
 	// create docker.project directory
 	projectDir := filepath.Join(dir, projectDirName)
 	if err := os.MkdirAll(projectDir, 0777); err != nil {
