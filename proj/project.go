@@ -33,6 +33,20 @@ const (
 	// projectUserFileName = "user.yml"
 )
 
+var (
+	commandsAllowedToBeOverridden = []string{
+		"build",
+		"deploy",
+		"export",
+		"logs",
+		"restart",
+		"run",
+		"start",
+		"stats",
+		"stop",
+	}
+)
+
 // Project defines a Docker project
 type Project struct {
 	Config Config
@@ -141,6 +155,16 @@ func GetForWd() (*Project, error) {
 		return nil, err
 	}
 	return Get(wd)
+}
+
+// IsCommandOverrideAllowed indicates whether a command is allowed to be overridden
+func IsCommandOverrideAllowed(cmd string) bool {
+	for _, c := range commandsAllowedToBeOverridden {
+		if c == cmd {
+			return true
+		}
+	}
+	return false
 }
 
 // Load loads a project at the given path
