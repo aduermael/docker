@@ -151,7 +151,7 @@ type UDFunction struct {
 	Padding     int
 }
 
-// GetProjectDefinedFunctions lists functions defined in the docker-commands.yaml file
+// GetProjectDefinedFunctions lists functions defined in the docker.yaml file
 func GetProjectDefinedFunctions() []UDFunction {
 	// test if we are in the context of a project
 	wd, err := os.Getwd()
