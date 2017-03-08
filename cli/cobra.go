@@ -156,15 +156,15 @@ func GetProjectDefinedFunctions() []UDFunction {
 	if err != nil || proj == nil {
 		return make([]UDFunction, 0)
 	}
-	cmds, err := proj.ListCustomCommands()
+	cmds, err := proj.ListCommands()
 	if err != nil {
 		return make([]UDFunction, 0)
 	}
 	result := make([]UDFunction, 0)
-	for cmdName, cmdContent := range cmds {
+	for _, cmd := range cmds {
 		result = append(result, UDFunction{
-			Name:        cmdName,
-			Description: cmdContent.Description,
+			Name:        cmd.Name,
+			Description: cmd.Description,
 			Padding:     11,
 		})
 	}

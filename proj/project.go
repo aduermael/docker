@@ -1,14 +1,17 @@
 package project
 
 import (
+	"bufio"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -34,6 +37,8 @@ const (
 )
 
 var (
+	// CommandsAllowedToBeOverridden is the list of docker commands for which
+	// override is allowed.
 	CommandsAllowedToBeOverridden = []string{
 		"build",
 		"deploy",
@@ -56,7 +61,6 @@ type Project struct {
 
 // DockerProjectDirPath returns the path of the docker.project directory
 func (p *Project) DockerProjectDirPath() string {
-
 	return filepath.Join(p.RootDirPath, projectDirName)
 }
 
@@ -133,15 +137,60 @@ func Init(dir, name string) error {
 	return nil
 }
 
-// ListCustomCommands returns commands defined for the project
-func (p *Project) ListCustomCommands() (map[string]ProjectCommand, error) {
-	// TODO: implement
-	result := make(map[string]ProjectCommand)
+// ListCommands returns commands defined for the project
+func (p *Project) ListCommands() ([]ProjectCommand, error) {
+	result := make([]ProjectCommand, 0)
+
+	dockerscriptFilePath := filepath.Join(p.DockerProjectDirPath(), "dockerscript.lua")
+	dsFileInfo, err := os.Stat(dockerscriptFilePath)
+	if err != nil {
+		// if dockerscript doesn't exists we return an empty array
+		if os.IsNotExist(err) {
+			return result, nil
+		}
+		return nil, err
+	}
+	if dsFileInfo.IsDir() {
+		return nil, errors.New("dockerscript.lua is a directory")
+	}
+	// read dockerscript
+	dsBytes, err := ioutil.ReadFile(dockerscriptFilePath)
+	if err != nil {
+		return nil, err
+	}
+	fileStringReader := bufio.NewReader(strings.NewReader(string(dsBytes)))
+	// we store the previous line content to look for a comment in the
+	// event of a function found on the current line.
+	previousLine := ""
+	for {
+		line, err := fileStringReader.ReadString(byte('\n'))
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "function ") {
+			trimmedLine := strings.TrimPrefix(line, "function ")
+			functionName := (strings.Split(trimmedLine, "("))[0]
+			functionName = strings.TrimSpace(functionName)
+			// check for description on the previous line
+			functionDescription := ""
+			if len(previousLine) > 0 && strings.HasPrefix(previousLine, "--") {
+				trimmedLine = strings.TrimPrefix(previousLine, "--")
+				functionDescription = strings.TrimSpace(trimmedLine)
+			}
+			result = append(result, ProjectCommand{Name: functionName, Description: functionDescription})
+		}
+		previousLine = line
+	}
 	return result, nil
 }
 
+// CommandExists indicates whether a command has been defined in the project
 func (p *Project) CommandExists(cmd string) (bool, error) {
-	commands, err := p.ListCustomCommands()
+	commands, err := p.ListCommands()
 	if err != nil {
 		return false, err
 	}
