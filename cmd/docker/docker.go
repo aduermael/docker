@@ -182,86 +182,59 @@ func main() {
 	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
 
 	// see if we're in the context of a Docker project or not
-	wd, err := os.Getwd()
+	proj, err := project.GetForWd()
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return
 	}
-	proj, err := project.Get(wd)
-	if err != nil {
-		fmt.Fprintln(stderr, err.Error())
-		return
+
+	// sandbox is used only if we are in the context of a docker project
+	if proj != nil && len(os.Args) > 1 {
+		cmdName := os.Args[1]
+
+		// see if the function has been defined for this project
+		projectCommandExists, err := proj.CommandExists(cmdName)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			os.Exit(1)
+		}
+
+		if projectCommandExists {
+			// check if this command can be overridden
+			if project.IsCommandOverrideAllowed(cmdName) == false {
+				errorMessage := "error: " + cmdName + " can't be overridden.\n" +
+					"this is the list of docker commands that can be overridden:\n" +
+					strings.Join(project.CommandsAllowedToBeOverridden, ", ")
+				fmt.Fprintln(stderr, errorMessage)
+				os.Exit(1)
+			}
+
+			// create Lua sandbox
+			sb, err := sandbox.NewSandbox(proj)
+			if err != nil {
+				fmt.Fprintln(stderr, err.Error())
+				os.Exit(1)
+			}
+
+			luaArgs := append([]string{cmdName}, os.Args[2:]...)
+			found, err := sb.Exec(luaArgs)
+			if found {
+				if err != nil {
+					fmt.Fprintln(stderr, err.Error())
+					os.Exit(1)
+				}
+				analytics.Event("command", map[string]interface{}{"name": "docker " + cmdName, "lua": true})
+				analytics.Close()
+				return
+			}
+			// NOTE: if Lua parsing in proj.CommandExists is working as expected
+			// we should never reach that specific point.
+			// because found should always be true.
+		}
+		// project command doesn't exist
 	}
 
 	cmd := newDockerCommand(dockerCli)
-
-	// sandbox is used only if we are in the context of a docker project
-	if proj != nil {
-
-		projectCmds, err := proj.ListCustomCommands()
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return
-		}
-
-		// TODO: look for command in the list
-
-		// TODO: update
-		// check for prohibited command override
-		overriddenCmds, err := overriddenCommands(projectCmds, cmd)
-		if err != nil {
-			fmt.Fprintln(stderr, err.Error())
-			return
-		}
-		if overriddenCmds != nil && len(overriddenCmds) > 0 {
-			errorMessage := "ERROR: one or several Docker commands are overridden in Dockerscript ["
-			for _, c := range overriddenCmds {
-				errorMessage = errorMessage + c + ","
-			}
-			errorMessage = errorMessage[:len(errorMessage)-1] + "]"
-			fmt.Fprintln(stderr, errors.New(errorMessage))
-			return
-		}
-
-		// create Lua sandbox
-		sb, err := sandbox.NewSandbox(proj)
-		if err != nil {
-			fmt.Fprintln(stderr, err.Error())
-			return
-		}
-
-		// this is required to initialize dockerCli
-		// (done in PersistentPreRunE when not using Lua sandbox)
-		opts := cliflags.NewClientOptions()
-		// flags have already been initialized when calling newDockerCommand
-		// just getting pointer to them
-		flags := cmd.Flags()
-		opts.Common.SetDefaultOptions(flags)
-		dockerPreRun(opts)
-		if err = dockerCli.Initialize(opts); err != nil {
-			fmt.Fprintln(stderr, err.Error())
-			return
-		}
-
-		// if found, execute command
-		for cmdName, cmdContent := range projectCmds {
-			if len(os.Args) > 1 && cmdName == os.Args[1] {
-				luaArgs := []string{cmdContent.Name}
-				luaArgs = append(luaArgs, os.Args[2:]...)
-				found, err := sb.Exec(luaArgs)
-				if found {
-					if err != nil {
-						fmt.Fprintln(stderr, err.Error())
-						return
-					}
-					analytics.Event("command", map[string]interface{}{"name": "docker " + os.Args[1], "lua": true})
-					analytics.Close()
-					return
-				}
-				break
-			}
-		}
-	}
 
 	if err := cmd.Execute(); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
@@ -391,25 +364,4 @@ func hasTags(cmd *cobra.Command) bool {
 	}
 
 	return false
-}
-
-// overriddenCommands ...
-func overriddenCommands(projCmds map[string]project.ProjectCommand, cmd *cobra.Command) ([]string, error) {
-	if cmd == nil {
-		return nil, errors.New("cmd is nil")
-	}
-
-	overriddenFuncs := make([]string, 0)
-
-	// all Lua global functions
-	for cmdName := range projCmds {
-		mainCmds := cmd.Commands()
-		for _, mainCmd := range mainCmds {
-			if cmdName == mainCmd.Name() {
-				overriddenFuncs = append(overriddenFuncs, cmdName)
-				break
-			}
-		}
-	}
-	return overriddenFuncs, nil
 }

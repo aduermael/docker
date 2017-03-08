@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	commandsAllowedToBeOverridden = []string{
+	CommandsAllowedToBeOverridden = []string{
 		"build",
 		"deploy",
 		"export",
@@ -136,6 +136,19 @@ func (p *Project) ListCustomCommands() (map[string]ProjectCommand, error) {
 	return result, nil
 }
 
+func (p *Project) CommandExists(cmd string) (bool, error) {
+	commands, err := p.ListCustomCommands()
+	if err != nil {
+		return false, err
+	}
+	for _, command := range commands {
+		if command.Name == cmd {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // Get returns project for given path
 // the docker.project folder can be in a parent
 // folder, so we have to test all the way up
@@ -166,7 +179,7 @@ func GetForWd() (*Project, error) {
 
 // IsCommandOverrideAllowed indicates whether a command is allowed to be overridden
 func IsCommandOverrideAllowed(cmd string) bool {
-	for _, c := range commandsAllowedToBeOverridden {
+	for _, c := range CommandsAllowedToBeOverridden {
 		if c == cmd {
 			return true
 		}
