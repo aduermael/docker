@@ -50,7 +50,7 @@ func NewSandbox(proj *project.Project) (*Sandbox, error) {
 	}
 
 	// populate Lua state
-	err = result.populateLuaState(proj)
+	err = result.populateLuaState(result.luaState, proj)
 	if err != nil {
 		return nil, err
 	}
@@ -348,58 +348,61 @@ func resetLuaState(s *lua.LState) error {
 }
 
 // populateLuaState adds functions to the Lua sandbox
-func (s *Sandbox) populateLuaState(proj *project.Project) error {
+func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) error {
+
+	// require
+	luaState.Env.RawSetString("require", luaState.NewFunction(s.require))
 
 	// print
-	s.luaState.Env.RawSetString("print", s.luaState.NewFunction(s.print))
+	luaState.Env.RawSetString("print", luaState.NewFunction(s.print))
 
 	// add username() & home() to os table
-	osLv := s.luaState.Env.RawGetString("os")
+	osLv := luaState.Env.RawGetString("os")
 	if osTbl, ok := osLv.(*lua.LTable); ok {
-		osTbl.RawSetString("username", s.luaState.NewFunction(s.username))
-		osTbl.RawSetString("home", s.luaState.NewFunction(s.home))
-		osTbl.RawSetString("setEnv", s.luaState.NewFunction(s.setEnv))
-		osTbl.RawSetString("getEnv", s.luaState.NewFunction(s.getEnv))
+		osTbl.RawSetString("username", luaState.NewFunction(s.username))
+		osTbl.RawSetString("home", luaState.NewFunction(s.home))
+		osTbl.RawSetString("setEnv", luaState.NewFunction(s.setEnv))
+		osTbl.RawSetString("getEnv", luaState.NewFunction(s.getEnv))
 	}
 
 	// docker
-	dockerLuaTable := s.luaState.CreateTable(0, 0)
-	dockerLuaTable.RawSetString("cmd", s.luaState.NewFunction(s.dockerCmd))
-	dockerLuaTable.RawSetString("silentCmd", s.luaState.NewFunction(s.dockerSilentCmd))
+	dockerLuaTable := luaState.CreateTable(0, 0)
+	dockerLuaTable.RawSetString("cmd", luaState.NewFunction(s.dockerCmd))
+	dockerLuaTable.RawSetString("silentCmd", luaState.NewFunction(s.dockerSilentCmd))
 
 	// docker.container
-	dockerContainerLuaTable := s.luaState.CreateTable(0, 0)
-	dockerContainerLuaTable.RawSetString("list", s.luaState.NewFunction(s.dockerContainerList))
+	dockerContainerLuaTable := luaState.CreateTable(0, 0)
+	dockerContainerLuaTable.RawSetString("list", luaState.NewFunction(s.dockerContainerList))
 	dockerLuaTable.RawSetString("container", dockerContainerLuaTable)
 
 	// docker.image
-	dockerImageLuaTable := s.luaState.CreateTable(0, 0)
-	dockerImageLuaTable.RawSetString("list", s.luaState.NewFunction(s.dockerImageList))
+	dockerImageLuaTable := luaState.CreateTable(0, 0)
+	dockerImageLuaTable.RawSetString("list", luaState.NewFunction(s.dockerImageList))
 	dockerLuaTable.RawSetString("image", dockerImageLuaTable)
 
 	// docker volume
-	dockerVolumeLuaTable := s.luaState.CreateTable(0, 0)
-	dockerVolumeLuaTable.RawSetString("list", s.luaState.NewFunction(s.dockerVolumeList))
+	dockerVolumeLuaTable := luaState.CreateTable(0, 0)
+	dockerVolumeLuaTable.RawSetString("list", luaState.NewFunction(s.dockerVolumeList))
 	dockerLuaTable.RawSetString("volume", dockerVolumeLuaTable)
 
 	// docker network
-	dockerNetworkLuaTable := s.luaState.CreateTable(0, 0)
-	dockerNetworkLuaTable.RawSetString("list", s.luaState.NewFunction(s.dockerNetworkList))
+	dockerNetworkLuaTable := luaState.CreateTable(0, 0)
+	dockerNetworkLuaTable.RawSetString("list", luaState.NewFunction(s.dockerNetworkList))
 	dockerLuaTable.RawSetString("network", dockerNetworkLuaTable)
 
 	// docker service
-	dockerServiceLuaTable := s.luaState.CreateTable(0, 0)
-	dockerServiceLuaTable.RawSetString("list", s.luaState.NewFunction(s.dockerServiceList))
+	dockerServiceLuaTable := luaState.CreateTable(0, 0)
+	dockerServiceLuaTable.RawSetString("list", luaState.NewFunction(s.dockerServiceList))
 	dockerLuaTable.RawSetString("service", dockerServiceLuaTable)
 
 	// docker secret
-	dockerSecretLuaTable := s.luaState.CreateTable(0, 0)
-	dockerSecretLuaTable.RawSetString("list", s.luaState.NewFunction(s.dockerSecretList))
+	dockerSecretLuaTable := luaState.CreateTable(0, 0)
+	dockerSecretLuaTable.RawSetString("list", luaState.NewFunction(s.dockerSecretList))
 	dockerLuaTable.RawSetString("secret", dockerSecretLuaTable)
 
 	// docker.project
 	if proj != nil {
-		dockerProjectLuaTable := s.luaState.CreateTable(0, 0)
+		dockerProjectLuaTable := luaState.CreateTable(0, 0)
 		dockerProjectLuaTable.RawSetString("id", lua.LString(proj.Config.ID))
 		dockerProjectLuaTable.RawSetString("name", lua.LString(proj.Config.Name))
 		dockerProjectLuaTable.RawSetString("root", lua.LString(proj.RootDirPath))
@@ -412,7 +415,7 @@ func (s *Sandbox) populateLuaState(proj *project.Project) error {
 	}
 
 	// expose json library in the Lua sandbox
-	luajson.Expose(s.luaState)
+	luajson.Expose(luaState)
 
 	return nil
 }
@@ -453,4 +456,44 @@ func (s *Sandbox) loadDockerscripts(proj *project.Project) error {
 	}
 
 	return nil
+}
+
+//
+func (s *Sandbox) require(L *lua.LState) int {
+
+	// retrieve string argument
+	filename, found, err := popStringParam(L)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+	if !found {
+		L.RaiseError("missing string argument")
+		return 0
+	}
+
+	st := lua.NewState()
+	if st == nil {
+		L.RaiseError("failed to import lua file [" + filename + "]")
+		return 0
+	}
+	err = resetLuaState(st)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+	err = s.populateLuaState(st, s.dockerProject)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+
+	err = st.DoFile(filename)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+
+	L.Push(st.Env)
+	return 1
 }
