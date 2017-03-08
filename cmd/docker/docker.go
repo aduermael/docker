@@ -218,8 +218,14 @@ func main() {
 			return
 		}
 
+		projectCmds, err := proj.ListCustomCommands()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return
+		}
+
 		// check for prohibited command override
-		overriddenCmds, err := overriddenCommands(os.Args[1:], cmd)
+		overriddenCmds, err := overriddenCommands(projectCmds, cmd)
 		if err != nil {
 			fmt.Fprintln(stderr, err.Error())
 			return
@@ -234,14 +240,8 @@ func main() {
 			return
 		}
 
-		// parse docker-commands.yaml
-		// and find which Lua function is to be executed
-		cmds, err := proj.ListCustomCommands()
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return
-		}
-		for cmdName, cmdContent := range cmds {
+		// if found, execute command
+		for cmdName, cmdContent := range projectCmds {
 			if len(os.Args) > 1 && cmdName == os.Args[1] {
 				luaArgs := []string{cmdContent.FunctionName}
 				luaArgs = append(luaArgs, os.Args[2:]...)
@@ -391,7 +391,7 @@ func hasTags(cmd *cobra.Command) bool {
 }
 
 // overriddenCommands ...
-func overriddenCommands(args []string, cmd *cobra.Command) ([]string, error) {
+func overriddenCommands(projCmds map[string]project.LuaCommand, cmd *cobra.Command) ([]string, error) {
 	if cmd == nil {
 		return nil, errors.New("cmd is nil")
 	}
@@ -399,16 +399,14 @@ func overriddenCommands(args []string, cmd *cobra.Command) ([]string, error) {
 	overriddenFuncs := make([]string, 0)
 
 	// all Lua global functions
-	UDFunctions := cli.GetProjectDefinedFunctions()
-	for _, f := range UDFunctions {
+	for cmdName := range projCmds {
 		mainCmds := cmd.Commands()
 		for _, mainCmd := range mainCmds {
-			if f.Name == mainCmd.Name() {
-				overriddenFuncs = append(overriddenFuncs, f.Name)
+			if cmdName == mainCmd.Name() {
+				overriddenFuncs = append(overriddenFuncs, cmdName)
 				break
 			}
 		}
 	}
-
 	return overriddenFuncs, nil
 }
