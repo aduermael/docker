@@ -17,7 +17,7 @@ const (
 	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
 
 	// CustomCommandsFileName is the name of the file defining project commands
-	CustomCommandsFileName = "docker.yaml"
+	CustomCommandsFileName = "docker.yml"
 	// DockerscriptFileName is the name of the main dockerscript file
 	DockerscriptFileName = "dockerscript.lua"
 )
