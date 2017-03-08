@@ -432,7 +432,7 @@ func (s *Sandbox) loadHooks(proj *project.Project) error {
 
 	// load Lua files that are in the project
 	projectDirPath := proj.DockerprojDirPath()
-	dockerscriptFilePath := filepath.Join(projectDirPath, project.DockerscriptFileName)
+	dockerscriptFilePath := filepath.Join(projectDirPath, proj.DockerscriptFileName())
 
 	// if file can't be found, just return
 	if _, err = os.Stat(dockerscriptFilePath); err != nil {
