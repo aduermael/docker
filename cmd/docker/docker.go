@@ -199,7 +199,6 @@ func main() {
 	if proj != nil {
 		// create Lua sandbox
 		sb, err := sandbox.NewSandbox(proj)
-
 		if err != nil {
 			fmt.Fprintln(stderr, err.Error())
 			return
@@ -234,16 +233,29 @@ func main() {
 			return
 		}
 
-		// exec command from sandbox or continue
-		found, err := sb.Exec(os.Args[1:])
-		if found {
-			if err != nil {
-				fmt.Fprintln(stderr, err.Error())
-				return
-			}
-			analytics.Event("command", map[string]interface{}{"name": "docker " + os.Args[1], "lua": true})
-			analytics.Close()
+		// parse docker-commands.yaml
+		// and find which Lua function is to be executed
+		cmds, err := proj.ListCustomCommands()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
 			return
+		}
+		for cmdName, cmdContent := range cmds {
+			if len(os.Args) > 1 && cmdName == os.Args[1] {
+				luaArgs := []string{cmdContent.FunctionName}
+				luaArgs = append(luaArgs, os.Args[2:]...)
+				found, err := sb.Exec(luaArgs)
+				if found {
+					if err != nil {
+						fmt.Fprintln(stderr, err.Error())
+						return
+					}
+					analytics.Event("command", map[string]interface{}{"name": "docker " + os.Args[1], "lua": true})
+					analytics.Close()
+					return
+				}
+				break
+			}
 		}
 	}
 

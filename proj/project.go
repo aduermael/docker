@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -22,9 +24,34 @@ type Project struct {
 	RootDirPath string
 }
 
+// LuaCommand describes a project custom command pointing to a Lua function
+type LuaCommand struct {
+	FunctionName string `yaml:"function"`
+	Description  string `yaml:"description"`
+}
+
 // DockerprojDirPath returns the path of the *.dockerproj directory
 func (p *Project) DockerprojDirPath() string {
 	return filepath.Join(p.RootDirPath, p.Config.Name+".dockerproj")
+}
+
+// ListCustomCommands parses the docker-commands.yaml file
+func (p *Project) ListCustomCommands() (map[string]LuaCommand, error) {
+	var err error
+	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), "docker-commands.yaml")
+	if _, err = os.Stat(dockerCmdsFilePath); err != nil {
+		return nil, err
+	}
+	dockerCmdsYamlBytes, err := ioutil.ReadFile(dockerCmdsFilePath)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]LuaCommand)
+	err = yaml.Unmarshal(dockerCmdsYamlBytes, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // Config defines the configuration of a docker project

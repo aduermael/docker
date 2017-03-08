@@ -1,12 +1,8 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/pkg/term"
@@ -155,7 +151,7 @@ type UDFunction struct {
 	Padding     int
 }
 
-// GetProjectDefinedFunctions lists functions defined in dockerscript file
+// GetProjectDefinedFunctions lists functions defined in the docker-commands.yaml file
 func GetProjectDefinedFunctions() []UDFunction {
 	// test if we are in the context of a project
 	wd, err := os.Getwd()
@@ -170,48 +166,20 @@ func GetProjectDefinedFunctions() []UDFunction {
 		// we are not in the context of a project
 		return make([]UDFunction, 0)
 	}
-	// we are in the context of a project,
-	// we have to check if any there is any user-defined function.
-	udFunctions := make([]UDFunction, 0)
-	dockerscriptFilePath := filepath.Join(proj.DockerprojDirPath(), "dockerscript.lua")
-	if fi, err := os.Stat(dockerscriptFilePath); err == nil {
-		if fi.IsDir() == false {
-			fileBytes, err := ioutil.ReadFile(dockerscriptFilePath)
-			if err != nil {
-				return make([]UDFunction, 0)
-			}
-			fileStringReader := bufio.NewReader(strings.NewReader(string(fileBytes)))
-			// we store the previous line content to look for a comment in the
-			// event of a function found on the current line.
-			previousLine := ""
-			for {
-				line, err := fileStringReader.ReadString(byte('\n'))
-				if err != nil {
-					if err == io.EOF {
-						break
-					}
-					return make([]UDFunction, 0)
-				}
-				line = strings.TrimSpace(line)
-				if strings.HasPrefix(line, "function ") {
-					trimmedLine := strings.TrimPrefix(line, "function ")
-					functionName := (strings.Split(trimmedLine, "("))[0]
-					functionName = strings.TrimSpace(functionName)
-					// check for description on the previous line
-					functionDescription := ""
-					if len(previousLine) > 0 && strings.HasPrefix(previousLine, "--") {
-						trimmedLine = strings.TrimPrefix(previousLine, "--")
-						functionDescription = strings.TrimSpace(trimmedLine)
-					}
-					udFunctions = append(udFunctions, UDFunction{Name: functionName, Description: functionDescription, Padding: 11})
-				}
-				previousLine = line
-			}
-			return udFunctions
-		}
+
+	cmds, err := proj.ListCustomCommands()
+	if err != nil {
 		return make([]UDFunction, 0)
 	}
-	return make([]UDFunction, 0)
+	result := make([]UDFunction, 0)
+	for cmdName, cmdContent := range cmds {
+		result = append(result, UDFunction{
+			Name:        cmdName,
+			Description: cmdContent.Description,
+			Padding:     11,
+		})
+	}
+	return result
 }
 
 var usageTemplate = `Usage:
