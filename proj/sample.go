@@ -1,9 +1,5 @@
 package project
 
-const dockerCommandsSample = `status:
-  description: "Lists Docker entities involved in project"
-  function: status`
-
 const dockerscriptSample = `-- Dockerscript
 -- A Dockerscript is a script written in Lua, executed in the Docker sandbox.
 -- Documentation: http://dockerproj.duermael.com
@@ -96,3 +92,8 @@ utils.join = function(arr, sep)
 	return str
 end
 `
+
+// YAML related
+// const dockerCommandsSample = `status:
+//   description: "Lists Docker entities involved in project"
+//   function: status`

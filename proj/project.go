@@ -9,8 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -18,15 +16,17 @@ const (
 	projectDirName = "docker.project"
 	// project config file name
 	projectConfigFileName = "config.json"
-	// name of the file defining project tasks and env variables
-	projectFileName = "docker.yml"
-	// similar to docker.yml, can be used to override or define project
-	// tasks or env variables specific to a user
-	projectUserFileName = "user.yml"
 	// name of the main dockerscript file
 	dockerscriptFileName = "dockerscript.lua"
 	// env var that can prevent `docker init` from dumping samples
 	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
+
+	// YAML related
+	// // name of the file defining project tasks and env variables
+	// projectFileName = "docker.yml"
+	// // similar to docker.yml, can be used to override or define project
+	// // tasks or env variables specific to a user
+	// projectUserFileName = "user.yml"
 )
 
 // Project defines a Docker project
@@ -34,12 +34,6 @@ type Project struct {
 	Config Config
 	// path of docker.project's parent directory
 	RootDirPath string
-}
-
-// LuaCommand describes a project custom command pointing to a Lua function
-type LuaCommand struct {
-	FunctionName string `yaml:"function"`
-	Description  string `yaml:"description"`
 }
 
 // DockerprojDirPath returns the path of the *.dockerproj directory
@@ -50,35 +44,6 @@ func (p *Project) DockerprojDirPath() string {
 // DockerscriptFileName returns the name of the dockerscript file to be loaded by the Lua sandbox
 func (p *Project) DockerscriptFileName() string {
 	return dockerscriptFileName
-}
-
-// ListCustomCommands parses the docker.yml file
-// TODO: consider project user file
-func (p *Project) ListCustomCommands() (map[string]LuaCommand, error) {
-	var err error
-	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), projectFileName)
-	if _, err = os.Stat(dockerCmdsFilePath); err != nil {
-		return nil, err
-	}
-	dockerCmdsYamlBytes, err := ioutil.ReadFile(dockerCmdsFilePath)
-	if err != nil {
-		return nil, err
-	}
-	result := make(map[string]LuaCommand)
-	err = yaml.Unmarshal(dockerCmdsYamlBytes, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// HasProjectFile indicates whether docker.yml exists
-// TODO: check for both projectFileName & projectUserFileName
-func (p *Project) HasProjectFile() bool {
-	var err error
-	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), projectFileName)
-	_, err = os.Stat(dockerCmdsFilePath)
-	return err == nil
 }
 
 // Config defines the configuration of a docker project
@@ -119,14 +84,15 @@ func Init(dir, name string) error {
 	projectNoSampleEnvVarValue := os.Getenv(envVarDockerProjectNoSample)
 	// we install a sample except if env var value is "1".
 	if projectNoSampleEnvVarValue != "1" {
-		// install docker.yml sample
-		dockerCommands := filepath.Join(projectDir, projectFileName)
-		if err := ioutil.WriteFile(
-			dockerCommands,
-			[]byte(dockerCommandsSample),
-			0644); err != nil {
-			return err
-		}
+		// YAML related
+		// // install docker.yml sample
+		// dockerCommands := filepath.Join(projectDir, projectFileName)
+		// if err := ioutil.WriteFile(
+		// 	dockerCommands,
+		// 	[]byte(dockerCommandsSample),
+		// 	0644); err != nil {
+		// 	return err
+		// }
 
 		// TODO: install user project file
 
@@ -226,3 +192,39 @@ func isProjectRoot(dirPath string) (found bool) {
 	found = true
 	return
 }
+
+// YAML related
+// // LuaCommand describes a project custom command pointing to a Lua function
+// type LuaCommand struct {
+// 	FunctionName string `yaml:"function"`
+// 	Description  string `yaml:"description"`
+// }
+
+// // ListCustomCommands parses the docker.yml file
+// // TODO: consider project user file
+// func (p *Project) ListCustomCommands() (map[string]LuaCommand, error) {
+// 	var err error
+// 	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), projectFileName)
+// 	if _, err = os.Stat(dockerCmdsFilePath); err != nil {
+// 		return nil, err
+// 	}
+// 	dockerCmdsYamlBytes, err := ioutil.ReadFile(dockerCmdsFilePath)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	result := make(map[string]LuaCommand)
+// 	err = yaml.Unmarshal(dockerCmdsYamlBytes, result)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return result, nil
+// }
+
+// // HasProjectFile indicates whether docker.yml exists
+// // TODO: check for both projectFileName & projectUserFileName
+// func (p *Project) HasProjectFile() bool {
+// 	var err error
+// 	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), projectFileName)
+// 	_, err = os.Stat(dockerCmdsFilePath)
+// 	return err == nil
+// }
