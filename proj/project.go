@@ -14,13 +14,19 @@ import (
 )
 
 const (
-	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
-	// name of the file defining project commands
-	customCommandsFileName = "docker.yml"
+	// name of the project config directory
+	projectDirName = "docker.project"
+	// project config file name
+	projectConfigFileName = "config.json"
+	// name of the file defining project tasks and env variables
+	projectFileName = "docker.yml"
+	// similar to docker.yml, can be used to override or define project
+	// tasks or env variables specific to a user
+	projectUserFileName = "user.yml"
 	// name of the main dockerscript file
 	dockerscriptFileName = "dockerscript.lua"
-
-	projectDirName = "docker.project"
+	// env var that can prevent `docker init` from dumping samples
+	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
 )
 
 // Project defines a Docker project
@@ -46,10 +52,11 @@ func (p *Project) DockerscriptFileName() string {
 	return dockerscriptFileName
 }
 
-// ListCustomCommands parses the docker.yaml file
+// ListCustomCommands parses the docker.yml file
+// TODO: consider project user file
 func (p *Project) ListCustomCommands() (map[string]LuaCommand, error) {
 	var err error
-	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), customCommandsFileName)
+	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), projectFileName)
 	if _, err = os.Stat(dockerCmdsFilePath); err != nil {
 		return nil, err
 	}
@@ -65,10 +72,11 @@ func (p *Project) ListCustomCommands() (map[string]LuaCommand, error) {
 	return result, nil
 }
 
-// HasDockerCommandsFile indicates whether docker.yaml exists
-func (p *Project) HasDockerCommandsFile() bool {
+// HasProjectFile indicates whether docker.yml exists
+// TODO: check for both projectFileName & projectUserFileName
+func (p *Project) HasProjectFile() bool {
 	var err error
-	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), customCommandsFileName)
+	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), projectFileName)
 	_, err = os.Stat(dockerCmdsFilePath)
 	return err == nil
 }
@@ -101,7 +109,7 @@ func Init(dir, name string) error {
 		return err
 	}
 
-	configFile := filepath.Join(projectDir, "config.json")
+	configFile := filepath.Join(projectDir, projectConfigFileName)
 	err = ioutil.WriteFile(configFile, jsonBytes, 0644)
 	if err != nil {
 		return err
@@ -111,14 +119,17 @@ func Init(dir, name string) error {
 	projectNoSampleEnvVarValue := os.Getenv(envVarDockerProjectNoSample)
 	// we install a sample except if env var value is "1".
 	if projectNoSampleEnvVarValue != "1" {
-		// install docker.yaml sample
-		dockerCommands := filepath.Join(projectDir, customCommandsFileName)
+		// install docker.yml sample
+		dockerCommands := filepath.Join(projectDir, projectFileName)
 		if err := ioutil.WriteFile(
 			dockerCommands,
 			[]byte(dockerCommandsSample),
 			0644); err != nil {
 			return err
 		}
+
+		// TODO: install user project file
+
 		// install dockerscript.lua sample
 		scriptedCommands := filepath.Join(projectDir, dockerscriptFileName)
 		if err := ioutil.WriteFile(
@@ -163,9 +174,9 @@ func GetForWd() (*Project, error) {
 // Load loads a project at the given path
 // The path needs to point to a directory that
 // contains a docker.project directory, and that
-// one needs to contains a config.json file
+// one needs to contains a configuration file
 func load(projectRootDirPath string) (*Project, error) {
-	configFile := filepath.Join(projectRootDirPath, projectDirName, "config.json")
+	configFile := filepath.Join(projectRootDirPath, projectDirName, projectConfigFileName)
 	jsonBytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return nil, err
