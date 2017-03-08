@@ -129,6 +129,13 @@ func Init(dir, name string) error {
 	return nil
 }
 
+// ListCustomCommands returns commands defined for the project
+func (p *Project) ListCustomCommands() (map[string]ProjectCommand, error) {
+	// TODO: implement
+	result := make(map[string]ProjectCommand)
+	return result, nil
+}
+
 // Get returns project for given path
 // the docker.project folder can be in a parent
 // folder, so we have to test all the way up
