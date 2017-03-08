@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -129,6 +130,24 @@ func Init(dir, name string) error {
 			[]byte(dockerscriptSample),
 			0644); err != nil {
 			return err
+		}
+
+		// create devs directory with USERNAME-dockerscript.lua sample
+		usr, err := user.Current()
+		if err == nil && usr != nil {
+			devsDir := filepath.Join(projectDir, userDockerScriptDirName)
+			if err := os.MkdirAll(devsDir, 0777); err != nil {
+				return err
+			}
+
+			fileName := fmt.Sprintf(userDockerScriptFileName, usr.Username)
+			userScriptedCommands := filepath.Join(devsDir, fileName)
+			if err := ioutil.WriteFile(
+				userScriptedCommands,
+				[]byte(userDockerscriptSample),
+				0644); err != nil {
+				return err
+			}
 		}
 
 		// TODO: install user specific dockerscript in devs directory

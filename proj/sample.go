@@ -93,6 +93,10 @@ utils.join = function(arr, sep)
 end
 `
 
+const userDockerscriptSample = `-- This Dockerscript can be used to define user specific commands. 
+-- Variables and functions defined here will override the ones defined for all users.
+`
+
 // YAML related
 // const dockerCommandsSample = `status:
 //   description: "Lists Docker entities involved in project"
