@@ -15,17 +15,18 @@ import (
 
 const (
 	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
-
 	// name of the file defining project commands
 	customCommandsFileName = "docker.yml"
 	// name of the main dockerscript file
 	dockerscriptFileName = "dockerscript.lua"
+
+	projectDirName = "docker.project"
 )
 
 // Project defines a Docker project
 type Project struct {
 	Config Config
-	// path of *.dockerproj's parent directory
+	// path of docker.project's parent directory
 	RootDirPath string
 }
 
@@ -37,7 +38,7 @@ type LuaCommand struct {
 
 // DockerprojDirPath returns the path of the *.dockerproj directory
 func (p *Project) DockerprojDirPath() string {
-	return filepath.Join(p.RootDirPath, p.Config.Name+".dockerproj")
+	return filepath.Join(p.RootDirPath, projectDirName)
 }
 
 // DockerscriptFileName returns the name of the dockerscript file to be loaded by the Lua sandbox
@@ -80,7 +81,7 @@ type Config struct {
 
 // Init initiates a new project
 func Init(dir, name string) error {
-	projectDir := filepath.Join(dir, name+".dockerproj")
+	projectDir := filepath.Join(dir, projectDirName)
 	if err := os.MkdirAll(projectDir, 0777); err != nil {
 		return err
 	}
@@ -132,18 +133,18 @@ func Init(dir, name string) error {
 }
 
 // Get returns project for given path
-// the .dockerproj folder can be in a parent
+// the docker.project folder can be in a parent
 // folder, so we have to test all the way up
 // to the root folder
-// If we can't find any .dockerproj folder,
+// If we can't find any docker.project folder,
 // then nil,nil is returned (no error)
 func Get(path string) (*Project, error) {
-	rootDirPath, projectDirName, err := findProjectRoot(path)
+	rootDirPath, err := findProjectRoot(path)
 	if err != nil {
 		// TODO: handle actual errors, for now we suppose no project is found
 		return nil, nil
 	}
-	project, err := load(rootDirPath, projectDirName)
+	project, err := load(rootDirPath)
 	if err != nil {
 		return nil, err
 	}
@@ -161,9 +162,9 @@ func GetForWd() (*Project, error) {
 
 // Load loads a project at the given path
 // The path needs to point to a directory that
-// contains a .dockerproj directory, and that
+// contains a docker.project directory, and that
 // one needs to contains a config.json file
-func load(projectRootDirPath, projectDirName string) (*Project, error) {
+func load(projectRootDirPath string) (*Project, error) {
 	configFile := filepath.Join(projectRootDirPath, projectDirName, "config.json")
 	jsonBytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
@@ -178,18 +179,13 @@ func load(projectRootDirPath, projectDirName string) (*Project, error) {
 }
 
 // findProjectRoot looks in current directory and parents until
-// it finds a *.dockerproj directory. It then returns the parent
+// it finds a docker.project directory. It then returns the parent
 // of that directory, the root of the Docker project.
-func findProjectRoot(path string) (projectRootPath string, projectDirName string, err error) {
+func findProjectRoot(path string) (projectRootPath string, err error) {
 	path = filepath.Clean(path)
-
 	for {
-		var found bool
-		found, projectDirName, err = isProjectRoot(path)
-		if err != nil {
-			return
-		}
-		if found {
+		b := isProjectRoot(path)
+		if b {
 			projectRootPath = path
 			return
 		}
@@ -199,55 +195,23 @@ func findProjectRoot(path string) (projectRootPath string, projectDirName string
 		}
 		path = filepath.Dir(path)
 	}
-
 	err = errors.New("can't find project root directory")
 	return
 }
 
-// isProjectRoot looks for a *.dockerproj directory at a given path.
+// isProjectRoot looks for a docker.project directory at a given path.
 // dirPath must exist and must be the path of a directory.
-// For now, if multiple *.dockerproj directories are found, an error is returned.
-func isProjectRoot(dirPath string) (found bool, projectDirName string, err error) {
+func isProjectRoot(dirPath string) (found bool) {
 	found = false
-	projectDirName = ""
-
+	projectDirPath := filepath.Join(dirPath, projectDirName)
 	// test if dirPath exists and check that it is a path to a directory
-	var fileInfo os.FileInfo
-	fileInfo, err = os.Stat(dirPath)
+	fileInfo, err := os.Stat(projectDirPath)
 	if os.IsNotExist(err) {
-		err = errors.New("file not found: " + dirPath)
 		return
 	}
-	// TODO: gdevillele: maybe we should follow links here...
 	if fileInfo.IsDir() == false {
-		err = errors.New("file is not a directory: " + dirPath)
 		return
 	}
-
-	// look for a *.dockerproj directory in the dirPath directory
-	var childrenFiles []os.FileInfo
-	childrenFiles, err = ioutil.ReadDir(dirPath)
-	if err != nil {
-		return
-	}
-
-	for _, childFile := range childrenFiles {
-		if childFile.IsDir() && filepath.Ext(childFile.Name()) == ".dockerproj" {
-			if len(projectDirName) == 0 {
-				projectDirName = childFile.Name()
-			} else {
-				err = errors.New("mutliple docker projects found")
-				return
-			}
-		}
-	}
-
-	if len(projectDirName) > 0 {
-		// a *.dockerproj directory has been found
-		found = true
-		err = nil
-		return
-	}
-	// no *.dockerproj directory has been found
+	found = true
 	return
 }
