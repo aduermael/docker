@@ -3,7 +3,6 @@ package sandbox
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 
 	project "github.com/docker/docker/proj"
@@ -57,7 +56,7 @@ func NewSandbox(proj *project.Project) (*Sandbox, error) {
 	}
 
 	// load user's project scripts
-	err = result.loadHooks(proj)
+	err = result.loadDockerscripts(proj)
 	if err != nil {
 		return nil, err
 	}
@@ -418,9 +417,10 @@ func (s *Sandbox) populateLuaState(proj *project.Project) error {
 	return nil
 }
 
-// loadHooks loads project's Lua hooks.
-// This requires a docker project.
-func (s *Sandbox) loadHooks(proj *project.Project) error {
+// loadDockerscripts loads project's Dockerscripts
+// dockerscript.lua from docker.project folder as well
+// as user defined dockerscript (from devs directory)
+func (s *Sandbox) loadDockerscripts(proj *project.Project) error {
 	var err error
 
 	// return an error if no docker project was provided
@@ -428,18 +428,29 @@ func (s *Sandbox) loadHooks(proj *project.Project) error {
 		return errDockerProjectNil
 	}
 
-	// we are in the context of a project
-
-	// load Lua files that are in the project
-	projectDirPath := proj.DockerProjectDirPath()
-	dockerscriptFilePath := filepath.Join(projectDirPath, proj.DockerscriptFileName())
-
-	// if file can't be found, just return
-	if _, err = os.Stat(dockerscriptFilePath); err != nil {
-		return nil
+	// load docker.project/dockerscript.lua
+	path, exists, err := proj.GetDockerscriptPath()
+	if err != nil {
+		return err
+	}
+	if exists {
+		err = s.luaState.DoFile(path)
+		if err != nil {
+			return err
+		}
 	}
 
-	// load file content in the sandbox
-	err = s.luaState.DoFile(dockerscriptFilePath)
-	return err
+	// load user specific script
+	path, exists, err = proj.GetUserDockerscriptPath()
+	if err != nil {
+		return err
+	}
+	if exists {
+		err = s.luaState.DoFile(path)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
