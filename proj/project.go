@@ -54,6 +54,14 @@ func (p *Project) ListCustomCommands() (map[string]LuaCommand, error) {
 	return result, nil
 }
 
+// HasDockerCommandsFile indicates whether docker-commands.yaml exists
+func (p *Project) HasDockerCommandsFile() bool {
+	var err error
+	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), "docker-commands.yaml")
+	_, err = os.Stat(dockerCmdsFilePath)
+	return err == nil
+}
+
 // Config defines the configuration of a docker project
 type Config struct {
 	Name string `json:"name"`
