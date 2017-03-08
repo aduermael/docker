@@ -15,6 +15,11 @@ import (
 
 const (
 	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
+
+	// CustomCommandsFileName is the name of the file defining project commands
+	CustomCommandsFileName = "docker.yaml"
+	// DockerscriptFileName is the name of the main dockerscript file
+	DockerscriptFileName = "dockerscript.lua"
 )
 
 // Project defines a Docker project
@@ -35,10 +40,10 @@ func (p *Project) DockerprojDirPath() string {
 	return filepath.Join(p.RootDirPath, p.Config.Name+".dockerproj")
 }
 
-// ListCustomCommands parses the docker-commands.yaml file
+// ListCustomCommands parses the docker.yaml file
 func (p *Project) ListCustomCommands() (map[string]LuaCommand, error) {
 	var err error
-	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), "docker-commands.yaml")
+	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), CustomCommandsFileName)
 	if _, err = os.Stat(dockerCmdsFilePath); err != nil {
 		return nil, err
 	}
@@ -54,10 +59,10 @@ func (p *Project) ListCustomCommands() (map[string]LuaCommand, error) {
 	return result, nil
 }
 
-// HasDockerCommandsFile indicates whether docker-commands.yaml exists
+// HasDockerCommandsFile indicates whether docker.yaml exists
 func (p *Project) HasDockerCommandsFile() bool {
 	var err error
-	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), "docker-commands.yaml")
+	dockerCmdsFilePath := filepath.Join(p.DockerprojDirPath(), CustomCommandsFileName)
 	_, err = os.Stat(dockerCmdsFilePath)
 	return err == nil
 }
@@ -100,8 +105,8 @@ func Init(dir, name string) error {
 	projectNoSampleEnvVarValue := os.Getenv(envVarDockerProjectNoSample)
 	// we install a sample except if env var value is "1".
 	if projectNoSampleEnvVarValue != "1" {
-		// install docker-commands.yaml sample
-		dockerCommands := filepath.Join(projectDir, "docker-commands.yaml")
+		// install docker.yaml sample
+		dockerCommands := filepath.Join(projectDir, CustomCommandsFileName)
 		if err := ioutil.WriteFile(
 			dockerCommands,
 			[]byte(dockerCommandsSample),
@@ -109,7 +114,7 @@ func Init(dir, name string) error {
 			return err
 		}
 		// install dockerscript.lua sample
-		scriptedCommands := filepath.Join(projectDir, "dockerscript.lua")
+		scriptedCommands := filepath.Join(projectDir, DockerscriptFileName)
 		if err := ioutil.WriteFile(
 			scriptedCommands,
 			[]byte(dockerscriptSample),
