@@ -259,6 +259,59 @@ func IsCommandOverrideAllowed(cmd string) bool {
 	return false
 }
 
+// GetDockerscriptPath returns the absolute path of project's dockerscript.lua
+func (p *Project) GetDockerscriptPath() (path string, exists bool, err error) {
+	path = filepath.Join(p.DockerProjectDirPath(), dockerscriptFileName)
+	var f os.FileInfo
+	f, err = os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = nil
+			return
+		}
+		return
+	}
+	if f.IsDir() {
+		err = fmt.Errorf(dockerscriptFileName + " is a directory")
+		return
+	}
+	exists = true
+	return
+}
+
+// GetUserDockerscriptPath returns the path where current user script should be
+// stored. It also returns a boolean to indicate whether the file exists or not.
+func (p *Project) GetUserDockerscriptPath() (path string, exists bool, err error) {
+	var usr *user.User
+	usr, err = user.Current()
+	if err != nil {
+		return
+	}
+	if usr == nil {
+		err = fmt.Errorf("can't get current user")
+		return
+	}
+
+	fileName := fmt.Sprintf(userDockerScriptFileName, usr.Username)
+	path = filepath.Join(p.DockerProjectDirPath(), userDockerScriptDirName, fileName)
+
+	var f os.FileInfo
+	f, err = os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = nil
+			return
+		}
+		return
+	}
+	if f.IsDir() {
+		err = fmt.Errorf(fileName + " is a directory")
+		return
+	}
+	exists = true
+	return
+}
+
 // Load loads a project at the given path
 // The path needs to point to a directory that
 // contains a docker.project directory, and that
