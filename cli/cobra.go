@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/docker/docker/pkg/term"
@@ -151,22 +150,12 @@ type UDFunction struct {
 	Padding     int
 }
 
-// GetProjectDefinedFunctions lists functions defined in the docker.yaml file
+// GetProjectDefinedFunctions lists project Dockerscript top level functions
 func GetProjectDefinedFunctions() []UDFunction {
-	// test if we are in the context of a project
-	wd, err := os.Getwd()
-	if err != nil {
+	proj, err := project.GetForWd()
+	if err != nil || proj == nil {
 		return make([]UDFunction, 0)
 	}
-	proj, err := project.Get(wd)
-	if err != nil {
-		return make([]UDFunction, 0)
-	}
-	if proj == nil {
-		// we are not in the context of a project
-		return make([]UDFunction, 0)
-	}
-
 	cmds, err := proj.ListCustomCommands()
 	if err != nil {
 		return make([]UDFunction, 0)

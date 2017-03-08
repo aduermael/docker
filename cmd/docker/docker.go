@@ -196,7 +196,32 @@ func main() {
 	cmd := newDockerCommand(dockerCli)
 
 	// sandbox is used only if we are in the context of a docker project
-	if proj != nil && proj.HasProjectFile() {
+	if proj != nil {
+
+		projectCmds, err := proj.ListCustomCommands()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return
+		}
+
+		// TODO: look for command in the list
+
+		// TODO: update
+		// check for prohibited command override
+		overriddenCmds, err := overriddenCommands(projectCmds, cmd)
+		if err != nil {
+			fmt.Fprintln(stderr, err.Error())
+			return
+		}
+		if overriddenCmds != nil && len(overriddenCmds) > 0 {
+			errorMessage := "ERROR: one or several Docker commands are overridden in Dockerscript ["
+			for _, c := range overriddenCmds {
+				errorMessage = errorMessage + c + ","
+			}
+			errorMessage = errorMessage[:len(errorMessage)-1] + "]"
+			fmt.Fprintln(stderr, errors.New(errorMessage))
+			return
+		}
 
 		// create Lua sandbox
 		sb, err := sandbox.NewSandbox(proj)
@@ -218,32 +243,10 @@ func main() {
 			return
 		}
 
-		projectCmds, err := proj.ListCustomCommands()
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return
-		}
-
-		// check for prohibited command override
-		overriddenCmds, err := overriddenCommands(projectCmds, cmd)
-		if err != nil {
-			fmt.Fprintln(stderr, err.Error())
-			return
-		}
-		if overriddenCmds != nil && len(overriddenCmds) > 0 {
-			errorMessage := "ERROR: one or several Docker commands are overridden in Dockerscript ["
-			for _, c := range overriddenCmds {
-				errorMessage = errorMessage + c + ","
-			}
-			errorMessage = errorMessage[:len(errorMessage)-1] + "]"
-			fmt.Fprintln(stderr, errors.New(errorMessage))
-			return
-		}
-
 		// if found, execute command
 		for cmdName, cmdContent := range projectCmds {
 			if len(os.Args) > 1 && cmdName == os.Args[1] {
-				luaArgs := []string{cmdContent.FunctionName}
+				luaArgs := []string{cmdContent.Name}
 				luaArgs = append(luaArgs, os.Args[2:]...)
 				found, err := sb.Exec(luaArgs)
 				if found {
@@ -391,7 +394,7 @@ func hasTags(cmd *cobra.Command) bool {
 }
 
 // overriddenCommands ...
-func overriddenCommands(projCmds map[string]project.LuaCommand, cmd *cobra.Command) ([]string, error) {
+func overriddenCommands(projCmds map[string]project.ProjectCommand, cmd *cobra.Command) ([]string, error) {
 	if cmd == nil {
 		return nil, errors.New("cmd is nil")
 	}
