@@ -196,7 +196,7 @@ func main() {
 	cmd := newDockerCommand(dockerCli)
 
 	// sandbox is used only if we are in the context of a docker project
-	if proj != nil && proj.HasDockerCommandsFile() {
+	if proj != nil && proj.HasProjectFile() {
 
 		// create Lua sandbox
 		sb, err := sandbox.NewSandbox(proj)
