@@ -3,6 +3,7 @@ package sandbox
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 
 	project "github.com/docker/docker/proj"
@@ -470,6 +471,17 @@ func (s *Sandbox) require(L *lua.LState) int {
 	if !found {
 		L.RaiseError("missing string argument")
 		return 0
+	}
+	// check that filepath is a relative path
+	if filepath.IsAbs(filename) {
+		L.RaiseError("path is absolute")
+		return 0
+	}
+	// add docker.project prefix to filename
+	filename = filepath.Join("docker.project", filename)
+	// check if file exists, if it doesn't, add the ".lua" extention
+	if _, err = os.Stat(filename); err != nil {
+		filename += ".lua"
 	}
 
 	st := lua.NewState()
