@@ -1,3 +1,0 @@
-dev:
-  description: "Lists Docker entities involved in project"
-  function: dev
