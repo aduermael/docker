@@ -175,15 +175,6 @@ func (s *Sandbox) addString(name string, str string) error {
 	return nil
 }
 
-// addTable adds a lua table to the sandbox
-func (s *Sandbox) addTable(name string, table *lua.LTable) error {
-	if s.luaState == nil {
-		return errLuaStateNil
-	}
-	s.luaState.Env.RawSetString(name, table)
-	return nil
-}
-
 // getTable returns a top-level lua table of the sandbox
 func (s *Sandbox) getTable(name string) (*lua.LTable, error) {
 	if s.luaState == nil {
@@ -243,6 +234,15 @@ func (s *Sandbox) msiRepresentation(tbl *lua.LTable) map[string]interface{} {
 /// Sandbox unexposed functions
 ///
 ////////////////////////////////////////////////////////////
+
+// addTable adds a lua table to the sandbox
+func addTableToLuaState(table *lua.LTable, state *lua.LState, name string) error {
+	if state == nil {
+		return errLuaStateNil
+	}
+	state.Env.RawSetString(name, table)
+	return nil
+}
 
 // resetLuaState sets a Lua state to what we call our "default state".
 // It removes, among other things, access the "io" table, which contains
@@ -410,7 +410,7 @@ func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) 
 		dockerLuaTable.RawSetString("project", dockerProjectLuaTable)
 	}
 
-	err := s.addTable("docker", dockerLuaTable)
+	err := addTableToLuaState(dockerLuaTable, luaState, "docker")
 	if err != nil {
 		return err
 	}
