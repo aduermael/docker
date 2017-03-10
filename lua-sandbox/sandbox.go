@@ -262,11 +262,6 @@ func resetLuaState(s *lua.LState) error {
 			error = error,
 			assert = assert,
 			pcall = pcall,
-			os = {
-				clock = os.clock,
-				date = os.date,
-				difftime = os.difftime,
-				time = os.time},
 			string = {
 				byte = string.byte,
 				char = string.char,
@@ -357,14 +352,13 @@ func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) 
 	// print
 	luaState.Env.RawSetString("print", luaState.NewFunction(s.print))
 
-	// add username() & home() to os table
-	osLv := luaState.Env.RawGetString("os")
-	if osTbl, ok := osLv.(*lua.LTable); ok {
-		osTbl.RawSetString("username", luaState.NewFunction(s.username))
-		osTbl.RawSetString("home", luaState.NewFunction(s.home))
-		osTbl.RawSetString("setEnv", luaState.NewFunction(s.setEnv))
-		osTbl.RawSetString("getEnv", luaState.NewFunction(s.getEnv))
-	}
+	// os
+	osLuaTable := luaState.CreateTable(0, 0)
+	osLuaTable.RawSetString("username", luaState.NewFunction(s.username))
+	osLuaTable.RawSetString("home", luaState.NewFunction(s.home))
+	osLuaTable.RawSetString("setEnv", luaState.NewFunction(s.setEnv))
+	osLuaTable.RawSetString("getEnv", luaState.NewFunction(s.getEnv))
+	luaState.Env.RawSetString("os", osLuaTable)
 
 	// docker
 	dockerLuaTable := luaState.CreateTable(0, 0)
