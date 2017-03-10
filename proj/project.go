@@ -125,7 +125,7 @@ func Init(dir, name string) error {
 
 		// install dockerscript.lua sample
 		scriptedCommands := filepath.Join(projectDir, dockerscriptFileName)
-		if err := ioutil.WriteFile(
+		if err = ioutil.WriteFile(
 			scriptedCommands,
 			[]byte(dockerscriptSample),
 			0644); err != nil {
@@ -133,26 +133,68 @@ func Init(dir, name string) error {
 		}
 
 		// create devs directory with USERNAME-dockerscript.lua sample
-		usr, err := user.Current()
-		if err == nil && usr != nil {
-			devsDir := filepath.Join(projectDir, userDockerScriptDirName)
-			if err := os.MkdirAll(devsDir, 0777); err != nil {
-				return err
-			}
-
-			fileName := fmt.Sprintf(userDockerScriptFileName, usr.Username)
-			userScriptedCommands := filepath.Join(devsDir, fileName)
-			if err := ioutil.WriteFile(
-				userScriptedCommands,
-				[]byte(userDockerscriptSample),
-				0644); err != nil {
-				return err
-			}
+		err = createUserDockerscript(projectDir)
+		if err != nil {
+			return err
 		}
-
-		// TODO: install user specific dockerscript in devs directory
 	}
 
+	return nil
+}
+
+// CreateDockerscriptForUser creates a docker.project/dev/USERNAME-dockerscript.lua
+func (p *Project) CreateDockerscriptForUser() error {
+	return createUserDockerscript(p.DockerProjectDirPath())
+}
+
+// createUserDockerscript creates a user-specific dockerscript for the current user
+func createUserDockerscript(dockerProjectDirPath string) error {
+
+	// if the "no sample" env var is set, we do nothing
+	projectNoSampleEnvVarValue := os.Getenv(envVarDockerProjectNoSample)
+	if projectNoSampleEnvVarValue == "1" {
+		return nil
+	}
+
+	usr, err := user.Current()
+	if err != nil {
+		return err
+	}
+	if usr == nil {
+		return errors.New("could not get info for current user")
+	}
+
+	devsDir := filepath.Join(dockerProjectDirPath, userDockerScriptDirName)
+	// check if devs directory exists
+	devsDirFi, err := os.Stat(devsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err = os.MkdirAll(devsDir, 0777); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	if devsDirFi != nil && devsDirFi.IsDir() == false {
+		return errors.New("docker.project/devs exists but is not a directory")
+	}
+
+	fileName := fmt.Sprintf(userDockerScriptFileName, usr.Username)
+	userScriptedCommands := filepath.Join(devsDir, fileName)
+
+	// check if devs/USERNAME-dockerscript.lua exists
+	_, err = os.Stat(userScriptedCommands)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = ioutil.WriteFile(
+				userScriptedCommands,
+				[]byte(userDockerscriptSample),
+				0644)
+			return err
+		}
+		return err
+	}
 	return nil
 }
 
