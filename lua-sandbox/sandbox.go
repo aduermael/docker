@@ -469,7 +469,7 @@ func (s *Sandbox) require(L *lua.LState) int {
 	// check that filepath is a relative path
 	if !filepath.IsAbs(filename) {
 		// add docker.project prefix to filename
-		filename = filepath.Join("docker.project", filename)
+		filename = filepath.Join(s.dockerProject.DockerProjectDirPath(), filename)
 	}
 
 	if filepath.Ext(filename) != ".lua" {
