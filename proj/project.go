@@ -23,9 +23,9 @@ const (
 	// name of the main dockerscript file
 	dockerscriptFileName = "dockerscript.lua"
 	// name of user specific dockerscripts (%s is replaced by the username)
-	userDockerScriptFileName = "%s-dockerscript.lua"
+	userDockerscriptFileName = "%s-dockerscript.lua"
 	// directory wher to put user specific scripts
-	userDockerScriptDirName = "users"
+	userDockerscriptDirName = "users"
 	// env var that can prevent `docker init` from dumping samples
 	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
 
@@ -58,17 +58,6 @@ type Project struct {
 	Config Config
 	// path of docker.project's parent directory
 	RootDirPath string
-}
-
-// DockerProjectDirPath returns the path of the docker.project directory
-func (p *Project) DockerProjectDirPath() string {
-	return filepath.Join(p.RootDirPath, projectDirName)
-}
-
-// DockerscriptFileName returns the name of the default dockerscript file to be
-// loaded by the Lua sandbox
-func (p *Project) DockerscriptFileName() string {
-	return dockerscriptFileName
 }
 
 // Config defines the configuration of a docker project
@@ -142,111 +131,57 @@ func Init(dir, name string) error {
 	return nil
 }
 
+// DockerProjectDirPath returns the path of the docker.project directory
+func (p *Project) DockerProjectDirPath() string {
+	return filepath.Join(p.RootDirPath, projectDirName)
+}
+
+// DockerscriptFileName returns the name of the default dockerscript file to be
+// loaded by the Lua sandbox
+func (p *Project) DockerscriptFileName() string {
+	return dockerscriptFileName
+}
+
 // CreateDockerscriptForUser creates a docker.project/dev/USERNAME-dockerscript.lua
 func (p *Project) CreateDockerscriptForUser() error {
 	return createUserDockerscript(p.DockerProjectDirPath())
 }
 
-// createUserDockerscript creates a user-specific dockerscript for the current user
-func createUserDockerscript(dockerProjectDirPath string) error {
-
-	// if the "no sample" env var is set, we do nothing
-	projectNoSampleEnvVarValue := os.Getenv(envVarDockerProjectNoSample)
-	if projectNoSampleEnvVarValue == "1" {
-		return nil
-	}
-
-	usr, err := user.Current()
-	if err != nil {
-		return err
-	}
-	if usr == nil {
-		return errors.New("could not get info for current user")
-	}
-
-	usersDir := filepath.Join(dockerProjectDirPath, userDockerScriptDirName)
-	// check if users directory exists
-	usersDirFi, err := os.Stat(usersDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if err = os.MkdirAll(usersDir, 0777); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-	if usersDirFi != nil && usersDirFi.IsDir() == false {
-		return errors.New("docker.project/users exists but is not a directory")
-	}
-
-	fileName := fmt.Sprintf(userDockerScriptFileName, usr.Username)
-	userScriptedCommands := filepath.Join(usersDir, fileName)
-
-	// check if users/USERNAME-dockerscript.lua exists
-	_, err = os.Stat(userScriptedCommands)
-	if err != nil {
-		if os.IsNotExist(err) {
-			err = ioutil.WriteFile(
-				userScriptedCommands,
-				[]byte(userDockerscriptSample),
-				0644)
-			return err
-		}
-		return err
-	}
-	return nil
-}
-
-// ListCommands returns commands defined for the project
+// ListCommands returns commands defined for the project.
+// This function parses the main "dockerfile.lua" but also the
+// <CURRENT_USER_USERNAME>-dockerfile.lua if it exists.
 func (p *Project) ListCommands() ([]ProjectCommand, error) {
-	result := make([]ProjectCommand, 0)
-
-	dockerscriptFilePath := filepath.Join(p.DockerProjectDirPath(), "dockerscript.lua")
-	dsFileInfo, err := os.Stat(dockerscriptFilePath)
-	if err != nil {
-		// if dockerscript doesn't exists we return an empty array
-		if os.IsNotExist(err) {
-			return result, nil
-		}
-		return nil, err
-	}
-	if dsFileInfo.IsDir() {
-		return nil, errors.New("dockerscript.lua is a directory")
-	}
-	// read dockerscript
-	dsBytes, err := ioutil.ReadFile(dockerscriptFilePath)
+	// list project commands
+	dockerscript := filepath.Join(p.DockerProjectDirPath(), "dockerscript.lua")
+	cmds, err := listCommandsForDockerscript(dockerscript)
 	if err != nil {
 		return nil, err
 	}
-	fileStringReader := bufio.NewReader(strings.NewReader(string(dsBytes)))
-	// we store the previous line content to look for a comment in the
-	// event of a function found on the current line.
-	previousLine := ""
-	for {
-		line, err := fileStringReader.ReadString(byte('\n'))
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "function ") {
-			trimmedLine := strings.TrimPrefix(line, "function ")
-			functionName := (strings.Split(trimmedLine, "("))[0]
-			functionName = strings.TrimSpace(functionName)
-			// check for description on the previous line
-			functionDescription := ""
-			if len(previousLine) > 0 && strings.HasPrefix(previousLine, "--") {
-				trimmedLine = strings.TrimPrefix(previousLine, "--")
-				functionDescription = strings.TrimSpace(trimmedLine)
-			}
-			result = append(result, ProjectCommand{Name: functionName, Description: functionDescription})
-		}
-		previousLine = line
+	// list user-specific project commands
+	userDockerscriptFileName, err := getUserDockerscriptFileName()
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+	userDockerscript := filepath.Join(p.DockerProjectDirPath(), userDockerscriptDirName, userDockerscriptFileName)
+	userCmds, err := listCommandsForDockerscript(userDockerscript)
+	if err != nil {
+		return nil, err
+	}
+	// build final list (user cmds override project cmds)
+	for _, usrCmd := range userCmds {
+		// check if it is an override
+		found := false
+		for j, prjCmd := range cmds {
+			if usrCmd.Name == prjCmd.Name {
+				cmds[j].Description = usrCmd.Description // override description
+				found = true
+			}
+		}
+		if found == false {
+			cmds = append(cmds, usrCmd)
+		}
+	}
+	return cmds, nil
 }
 
 // CommandExists indicates whether a command has been defined in the project
@@ -334,8 +269,8 @@ func (p *Project) GetUserDockerscriptPath() (path string, exists bool, err error
 		return
 	}
 
-	fileName := fmt.Sprintf(userDockerScriptFileName, usr.Username)
-	path = filepath.Join(p.DockerProjectDirPath(), userDockerScriptDirName, fileName)
+	fileName := fmt.Sprintf(userDockerscriptFileName, usr.Username)
+	path = filepath.Join(p.DockerProjectDirPath(), userDockerscriptDirName, fileName)
 
 	var f os.FileInfo
 	f, err = os.Stat(path)
@@ -408,6 +343,116 @@ func isProjectRoot(dirPath string) (found bool) {
 	}
 	found = true
 	return
+}
+
+// getUserDockerscriptFileName returns the name of the current user's
+// dockerscript, not matter if the file actually exists or not.
+// The file name is <USERNAME>-dockerscript.lua
+func getUserDockerscriptFileName() (string, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	if usr == nil {
+		return "", errors.New("could not get info for current user")
+	}
+	return fmt.Sprintf(userDockerscriptFileName, usr.Username), nil
+}
+
+// createUserDockerscript creates a user-specific dockerscript for the current user.
+func createUserDockerscript(dockerProjectDirPath string) error {
+	// if the "no sample" env var is set, we do nothing
+	projectNoSampleEnvVarValue := os.Getenv(envVarDockerProjectNoSample)
+	if projectNoSampleEnvVarValue == "1" {
+		return nil
+	}
+
+	usersDir := filepath.Join(dockerProjectDirPath, userDockerscriptDirName)
+	// check if users directory exists
+	usersDirFi, err := os.Stat(usersDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err = os.MkdirAll(usersDir, 0777); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	if usersDirFi != nil && usersDirFi.IsDir() == false {
+		return errors.New("docker.project/users exists but is not a directory")
+	}
+
+	fileName, err := getUserDockerscriptFileName()
+	if err != nil {
+		return err
+	}
+	userScriptedCommands := filepath.Join(usersDir, fileName)
+
+	// check if users/USERNAME-dockerscript.lua exists
+	_, err = os.Stat(userScriptedCommands)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = ioutil.WriteFile(
+				userScriptedCommands,
+				[]byte(userDockerscriptSample),
+				0644)
+			return err
+		}
+		return err
+	}
+	return nil
+}
+
+// listCommandsForDockerscript manually parses a dockerscript (lua file)
+// and returns a list of top-level functions and their description.
+func listCommandsForDockerscript(path string) ([]ProjectCommand, error) {
+	result := make([]ProjectCommand, 0)
+
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		// if dockerscript doesn't exists we return an empty array
+		if os.IsNotExist(err) {
+			return result, nil
+		}
+		return nil, err
+	}
+	if fileInfo.IsDir() {
+		return nil, errors.New("path points to a directory")
+	}
+	// read dockerscript
+	fileBytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	fileStringReader := bufio.NewReader(strings.NewReader(string(fileBytes)))
+	// we store the previous line content to look for a comment in the
+	// event of a function found on the current line.
+	previousLine := ""
+	for {
+		line, err := fileStringReader.ReadString(byte('\n'))
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "function ") {
+			trimmedLine := strings.TrimPrefix(line, "function ")
+			functionName := (strings.Split(trimmedLine, "("))[0]
+			functionName = strings.TrimSpace(functionName)
+			// check for description on the previous line
+			functionDescription := ""
+			if len(previousLine) > 0 && strings.HasPrefix(previousLine, "--") {
+				trimmedLine = strings.TrimPrefix(previousLine, "--")
+				functionDescription = strings.TrimSpace(trimmedLine)
+			}
+			result = append(result, ProjectCommand{Name: functionName, Description: functionDescription})
+		}
+		previousLine = line
+	}
+	return result, nil
 }
 
 // YAML related
