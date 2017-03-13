@@ -25,7 +25,7 @@ const (
 	// name of user specific dockerscripts (%s is replaced by the username)
 	userDockerScriptFileName = "%s-dockerscript.lua"
 	// directory wher to put user specific scripts
-	userDockerScriptDirName = "devs"
+	userDockerScriptDirName = "users"
 	// env var that can prevent `docker init` from dumping samples
 	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
 
@@ -132,7 +132,7 @@ func Init(dir, name string) error {
 			return err
 		}
 
-		// create devs directory with USERNAME-dockerscript.lua sample
+		// create users directory with USERNAME-dockerscript.lua sample
 		err = createUserDockerscript(projectDir)
 		if err != nil {
 			return err
@@ -164,26 +164,26 @@ func createUserDockerscript(dockerProjectDirPath string) error {
 		return errors.New("could not get info for current user")
 	}
 
-	devsDir := filepath.Join(dockerProjectDirPath, userDockerScriptDirName)
-	// check if devs directory exists
-	devsDirFi, err := os.Stat(devsDir)
+	usersDir := filepath.Join(dockerProjectDirPath, userDockerScriptDirName)
+	// check if users directory exists
+	usersDirFi, err := os.Stat(usersDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			if err = os.MkdirAll(devsDir, 0777); err != nil {
+			if err = os.MkdirAll(usersDir, 0777); err != nil {
 				return err
 			}
 		} else {
 			return err
 		}
 	}
-	if devsDirFi != nil && devsDirFi.IsDir() == false {
-		return errors.New("docker.project/devs exists but is not a directory")
+	if usersDirFi != nil && usersDirFi.IsDir() == false {
+		return errors.New("docker.project/users exists but is not a directory")
 	}
 
 	fileName := fmt.Sprintf(userDockerScriptFileName, usr.Username)
-	userScriptedCommands := filepath.Join(devsDir, fileName)
+	userScriptedCommands := filepath.Join(usersDir, fileName)
 
-	// check if devs/USERNAME-dockerscript.lua exists
+	// check if users/USERNAME-dockerscript.lua exists
 	_, err = os.Stat(userScriptedCommands)
 	if err != nil {
 		if os.IsNotExist(err) {
