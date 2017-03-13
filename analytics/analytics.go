@@ -17,7 +17,7 @@ import (
 
 var (
 	client         *analytics.Client
-	cliTestVersion = "0.0.3"
+	cliTestVersion = "0.0.4"
 	userid         = ""
 	inproj         = false
 	usernames      = ""
