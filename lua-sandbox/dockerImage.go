@@ -48,6 +48,13 @@ func (s *Sandbox) dockerImageList(L *lua.LState) int {
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 	flags.Parse(argsArr)
 
+	// get the non-flag command-line arguments
+	args := flags.Args()
+
+	if len(args) > 0 {
+		opts.matchName = args[0]
+	}
+
 	// contact docker API
 	ctx := context.Background()
 
