@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -348,14 +347,11 @@ func isProjectRoot(dirPath string) (found bool) {
 // dockerscript, not matter if the file actually exists or not.
 // The file name is <USERNAME>-dockerscript.lua
 func getUserDockerscriptFileName() (string, error) {
-	usr, err := user.Current()
+	username, err := projectuser.GetUsername()
 	if err != nil {
 		return "", err
 	}
-	if usr == nil {
-		return "", errors.New("could not get info for current user")
-	}
-	return fmt.Sprintf(userDockerscriptFileName, usr.Username), nil
+	return fmt.Sprintf(userDockerscriptFileName, username), nil
 }
 
 // createUserDockerscript creates a user-specific dockerscript for the current user.
