@@ -13,6 +13,8 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+
+	projectuser "github.com/docker/docker/proj/user"
 )
 
 const (
@@ -259,17 +261,14 @@ func (p *Project) GetDockerscriptPath() (path string, exists bool, err error) {
 // GetUserDockerscriptPath returns the path where current user script should be
 // stored. It also returns a boolean to indicate whether the file exists or not.
 func (p *Project) GetUserDockerscriptPath() (path string, exists bool, err error) {
-	var usr *user.User
-	usr, err = user.Current()
+	// get current user's username
+	var username string
+	username, err = projectuser.GetUsername()
 	if err != nil {
-		return
-	}
-	if usr == nil {
-		err = fmt.Errorf("can't get current user")
-		return
+		return "", false, err
 	}
 
-	fileName := fmt.Sprintf(userDockerscriptFileName, usr.Username)
+	fileName := fmt.Sprintf(userDockerscriptFileName, username)
 	path = filepath.Join(p.DockerProjectDirPath(), userDockerscriptDirName, fileName)
 
 	var f os.FileInfo
