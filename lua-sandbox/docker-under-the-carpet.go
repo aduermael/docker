@@ -1,11 +1,20 @@
 package sandbox
 
 import (
+	"archive/tar"
+	"bufio"
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
+	"regexp"
 	"strings"
 
+	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/cli"
@@ -16,6 +25,7 @@ import (
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/templates"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -89,6 +99,179 @@ type imagesOptions struct {
 	showDigests bool
 	format      string
 	filter      opts.FilterOpt
+}
+
+// REQUIRED BY dockerImageBuild
+
+type buildOptions struct {
+	context        string
+	dockerfileName string
+	tags           opts.ListOpts
+	labels         opts.ListOpts
+	buildArgs      opts.ListOpts
+	extraHosts     opts.ListOpts
+	ulimits        *opts.UlimitOpt
+	memory         opts.MemBytes
+	memorySwap     opts.MemSwapBytes
+	shmSize        opts.MemBytes
+	cpuShares      int64
+	cpuPeriod      int64
+	cpuQuota       int64
+	cpuSetCpus     string
+	cpuSetMems     string
+	cgroupParent   string
+	isolation      string
+	quiet          bool
+	noCache        bool
+	rm             bool
+	forceRm        bool
+	pull           bool
+	cacheFrom      []string
+	compress       bool
+	securityOpt    []string
+	networkMode    string
+	squash         bool
+}
+
+// validateTag checks if the given image name can be resolved.
+func validateTag(rawRepo string) (string, error) {
+	_, err := reference.ParseNormalizedNamed(rawRepo)
+	if err != nil {
+		return "", err
+	}
+
+	return rawRepo, nil
+}
+
+func isLocalDir(c string) bool {
+	_, err := os.Stat(c)
+	return err == nil
+}
+
+// resolvedTag records the repository, tag, and resolved digest reference
+// from a Dockerfile rewrite.
+type resolvedTag struct {
+	digestRef reference.Canonical
+	tagRef    reference.NamedTagged
+}
+
+type translatorFunc func(context.Context, reference.NamedTagged) (reference.Canonical, error)
+
+// replaceDockerfileTarWrapper wraps the given input tar archive stream and
+// replaces the entry with the given Dockerfile name with the contents of the
+// new Dockerfile. Returns a new tar archive stream with the replaced
+// Dockerfile.
+func replaceDockerfileTarWrapper(ctx context.Context, inputTarStream io.ReadCloser, dockerfileName string, translator translatorFunc, resolvedTags *[]*resolvedTag) io.ReadCloser {
+	pipeReader, pipeWriter := io.Pipe()
+	go func() {
+		tarReader := tar.NewReader(inputTarStream)
+		tarWriter := tar.NewWriter(pipeWriter)
+
+		defer inputTarStream.Close()
+
+		for {
+			hdr, err := tarReader.Next()
+			if err == io.EOF {
+				// Signals end of archive.
+				tarWriter.Close()
+				pipeWriter.Close()
+				return
+			}
+			if err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			content := io.Reader(tarReader)
+			if hdr.Name == dockerfileName {
+				// This entry is the Dockerfile. Since the tar archive was
+				// generated from a directory on the local filesystem, the
+				// Dockerfile will only appear once in the archive.
+				var newDockerfile []byte
+				newDockerfile, *resolvedTags, err = rewriteDockerfileFrom(ctx, content, translator)
+				if err != nil {
+					pipeWriter.CloseWithError(err)
+					return
+				}
+				hdr.Size = int64(len(newDockerfile))
+				content = bytes.NewBuffer(newDockerfile)
+			}
+
+			if err := tarWriter.WriteHeader(hdr); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			if _, err := io.Copy(tarWriter, content); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+		}
+	}()
+
+	return pipeReader
+}
+
+var dockerfileFromLinePattern = regexp.MustCompile(`(?i)^[\s]*FROM[ \f\r\t\v]+(?P<image>[^ \f\r\t\v\n#]+)`)
+
+// rewriteDockerfileFrom rewrites the given Dockerfile by resolving images in
+// "FROM <image>" instructions to a digest reference. `translator` is a
+// function that takes a repository name and tag reference and returns a
+// trusted digest reference.
+func rewriteDockerfileFrom(ctx context.Context, dockerfile io.Reader, translator translatorFunc) (newDockerfile []byte, resolvedTags []*resolvedTag, err error) {
+	scanner := bufio.NewScanner(dockerfile)
+	buf := bytes.NewBuffer(nil)
+
+	// Scan the lines of the Dockerfile, looking for a "FROM" line.
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		matches := dockerfileFromLinePattern.FindStringSubmatch(line)
+		if matches != nil && matches[1] != api.NoBaseImageSpecifier {
+			// Replace the line with a resolved "FROM repo@digest"
+			var ref reference.Named
+			ref, err = reference.ParseNormalizedNamed(matches[1])
+			if err != nil {
+				return nil, nil, err
+			}
+			ref = reference.TagNameOnly(ref)
+			if ref, ok := ref.(reference.NamedTagged); ok && command.IsTrusted() {
+				trustedRef, err := translator(ctx, ref)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", reference.FamiliarString(trustedRef)))
+				resolvedTags = append(resolvedTags, &resolvedTag{
+					digestRef: trustedRef,
+					tagRef:    ref,
+				})
+			}
+		}
+
+		_, err := fmt.Fprintln(buf, line)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return buf.Bytes(), resolvedTags, scanner.Err()
+}
+
+// lastProgressOutput is the same as progress.Output except
+// that it only output with the last update. It is used in
+// non terminal scenarios to suppress verbose messages
+type lastProgressOutput struct {
+	output progress.Output
+}
+
+// WriteProgress formats progress information from a ProgressReader.
+func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
+	if !prog.LastUpdate {
+		return nil
+	}
+
+	return out.output.WriteProgress(prog)
 }
 
 // REQUIRED BY dockerCmd
