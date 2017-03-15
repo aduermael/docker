@@ -368,6 +368,7 @@ func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) 
 	// docker.container
 	dockerContainerLuaTable := luaState.CreateTable(0, 0)
 	dockerContainerLuaTable.RawSetString("list", luaState.NewFunction(s.dockerContainerList))
+	dockerContainerLuaTable.RawSetString("run", luaState.NewFunction(s.dockerContainerRun))
 	dockerLuaTable.RawSetString("container", dockerContainerLuaTable)
 
 	// docker.image
@@ -376,25 +377,25 @@ func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) 
 	dockerImageLuaTable.RawSetString("list", luaState.NewFunction(s.dockerImageList))
 	dockerLuaTable.RawSetString("image", dockerImageLuaTable)
 
-	// docker volume
-	dockerVolumeLuaTable := luaState.CreateTable(0, 0)
-	dockerVolumeLuaTable.RawSetString("list", luaState.NewFunction(s.dockerVolumeList))
-	dockerLuaTable.RawSetString("volume", dockerVolumeLuaTable)
-
 	// docker network
 	dockerNetworkLuaTable := luaState.CreateTable(0, 0)
 	dockerNetworkLuaTable.RawSetString("list", luaState.NewFunction(s.dockerNetworkList))
 	dockerLuaTable.RawSetString("network", dockerNetworkLuaTable)
+
+	// docker secret
+	dockerSecretLuaTable := luaState.CreateTable(0, 0)
+	dockerSecretLuaTable.RawSetString("list", luaState.NewFunction(s.dockerSecretList))
+	dockerLuaTable.RawSetString("secret", dockerSecretLuaTable)
 
 	// docker service
 	dockerServiceLuaTable := luaState.CreateTable(0, 0)
 	dockerServiceLuaTable.RawSetString("list", luaState.NewFunction(s.dockerServiceList))
 	dockerLuaTable.RawSetString("service", dockerServiceLuaTable)
 
-	// docker secret
-	dockerSecretLuaTable := luaState.CreateTable(0, 0)
-	dockerSecretLuaTable.RawSetString("list", luaState.NewFunction(s.dockerSecretList))
-	dockerLuaTable.RawSetString("secret", dockerSecretLuaTable)
+	// docker volume
+	dockerVolumeLuaTable := luaState.CreateTable(0, 0)
+	dockerVolumeLuaTable.RawSetString("list", luaState.NewFunction(s.dockerVolumeList))
+	dockerLuaTable.RawSetString("volume", dockerVolumeLuaTable)
 
 	// docker.project
 	if proj != nil {
