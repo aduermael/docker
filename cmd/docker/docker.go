@@ -188,6 +188,13 @@ func main() {
 		return
 	}
 
+	if proj != nil {
+		err := proj.SaveInRecentProjects()
+		if err != nil {
+			logrus.Fatalln(err)
+		}
+	}
+
 	cmd := newDockerCommand(dockerCli)
 
 	// sandbox is used only if we are in the context of a docker project
