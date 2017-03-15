@@ -427,6 +427,15 @@ func (s *Sandbox) loadDockerscripts(proj *project.Project) error {
 		return errDockerProjectNil
 	}
 
+	// chdir to project root dir
+	projectRootDir := s.dockerProject.RootDirPath
+	currentWorkingDirectory, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	os.Chdir(projectRootDir)
+	defer os.Chdir(currentWorkingDirectory)
+
 	// load docker.project/dockerscript.lua
 	path, exists, err := proj.GetDockerscriptPath()
 	if err != nil {
