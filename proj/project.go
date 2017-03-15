@@ -237,7 +237,8 @@ func IsCommandOverrideAllowed(cmd string) bool {
 	return false
 }
 
-// GetDockerscriptPath returns the absolute path of project's dockerscript.lua
+// GetDockerscriptPath returns the relative path of project's dockerscript.lua
+// (relative to project's root directory)
 func (p *Project) GetDockerscriptPath() (path string, exists bool, err error) {
 	path = filepath.Join(p.DockerProjectDirPath(), dockerscriptFileName)
 	var f os.FileInfo
@@ -254,11 +255,13 @@ func (p *Project) GetDockerscriptPath() (path string, exists bool, err error) {
 		return
 	}
 	exists = true
+	path = filepath.Join(projectDirName, dockerscriptFileName)
 	return
 }
 
-// GetUserDockerscriptPath returns the path where current user script should be
+// GetUserDockerscriptPath returns relative path where current user script should be
 // stored. It also returns a boolean to indicate whether the file exists or not.
+// (relative to project's root directory)
 func (p *Project) GetUserDockerscriptPath() (path string, exists bool, err error) {
 	// get current user's username
 	var username string
@@ -284,6 +287,7 @@ func (p *Project) GetUserDockerscriptPath() (path string, exists bool, err error
 		return
 	}
 	exists = true
+	path = filepath.Join(projectDirName, userDockerscriptDirName, fileName)
 	return
 }
 
