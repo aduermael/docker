@@ -16,6 +16,7 @@ func NewProjectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 	cmd.AddCommand(
 		NewInitCommand(dockerCli),
+		NewLsCommand(dockerCli),
 	)
 	return cmd
 }
