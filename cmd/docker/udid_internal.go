@@ -1,4 +1,4 @@
-// +build IS_DOCKER_EMPLOYEE
+// +build !IS_EXTERNAL_USER
 
 package main
 
