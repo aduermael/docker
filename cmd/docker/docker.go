@@ -173,6 +173,9 @@ func noArgs(cmd *cobra.Command, args []string) error {
 }
 
 func main() {
+
+	checkUDID()
+
 	os.Setenv("DOCKER_HIDE_LEGACY_COMMANDS", "1")
 
 	// Set terminal emulation based on platform as required.
