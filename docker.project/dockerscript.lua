@@ -25,12 +25,12 @@ end
 
 -- Exports client binaries for all platforms (For Docker Employees)
 function exportDE(args)
-	hidden.export(args, 'DOCKER_BUILDTAGS=\\"$DOCKER_BUILDTAGS -tags IS_DOCKER_EMPLOYEE\\" ')
+	hidden.export(args, '')
 end
 
 -- Exports client binaries for all platforms (For External Users)
 function exportEU(args)
-	hidden.export(args, '')
+	hidden.export(args, 'DOCKER_BUILDTAGS=\\"$DOCKER_BUILDTAGS -tags IS_EXTERNAL_USER\\" ')
 end
 
 hidden = {}
