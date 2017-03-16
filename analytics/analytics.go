@@ -7,11 +7,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/docker/docker/cli/config"
 	project "github.com/docker/docker/proj"
+	projectUser "github.com/docker/docker/proj/user"
 	analytics "github.com/segmentio/analytics-go"
 )
 
@@ -51,7 +53,8 @@ func init() {
 	// see if command is executed in Docker project context
 	wd, err := os.Getwd()
 	if err == nil {
-		proj, err := project.Get(wd)
+		var proj *project.Project
+		proj, err = project.Get(wd)
 		if err == nil {
 			if proj != nil {
 				inproj = true
@@ -106,9 +109,12 @@ func Event(name string, properties map[string]interface{}) {
 		Event:  name,
 		UserId: userid,
 		Properties: map[string]interface{}{
-			"project":  inproj,
-			"username": usernames,
-			"version":  cliTestVersion,
+			"project":    inproj,
+			"username":   usernames,
+			"version":    cliTestVersion,
+			"localuser":  getSystemUsername(),
+			"isemployee": getIsDockerEmployee(),
+			"os":         getOSName(),
 		},
 	}
 	for k, v := range properties {
@@ -123,4 +129,20 @@ func Event(name string, properties map[string]interface{}) {
 // Close closes the analytics client after all the requests are finished
 func Close() {
 	client.Close()
+}
+
+func getOSName() string {
+	return runtime.GOOS
+}
+
+func getIsDockerEmployee() bool {
+	return isDockerEmployee
+}
+
+func getSystemUsername() string {
+	usrName, err := projectUser.GetUsername()
+	if err != nil {
+		return ""
+	}
+	return usrName
 }
