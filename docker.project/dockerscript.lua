@@ -23,21 +23,31 @@ function dev(args)
 	docker bash')
 end
 
--- Exports client binaries for all platforms
-function export(args)
+-- Exports client binaries for all platforms (For Docker Employees)
+function exportDE(args)
+	hidden.export(args, 'DOCKER_BUILDTAGS=\\"$DOCKER_BUILDTAGS -tags IS_DOCKER_EMPLOYEE\\" ')
+end
+
+-- Exports client binaries for all platforms (For External Users)
+function exportEU(args)
+	hidden.export(args, '')
+end
+
+hidden = {}
+hidden.export = function(args, tags)
 	if #args ~= 1 then
 		print("absolute path to destination directory expected")
 		return
 	end
 	local exportDir = args[1]
 	build()
-	docker.cmd('run ' ..
+	local command = 'run ' ..
 		'-e DOCKER_CROSSPLATFORMS="linux/amd64 linux/arm darwin/amd64 windows/amd64" ' ..
 		'-v ' .. exportDir .. ':/output ' ..
 		'-v ' .. docker.project.root .. ':/go/src/github.com/docker/docker ' ..
 		'--privileged -i -t docker bash -c "' ..
 		'VERSION=$(< ./VERSION) && ' ..
-		'hack/make.sh cross-client && ' ..
+		tags .. 'hack/make.sh cross-client && ' ..
 		'mkdir -p /output/linux && ' ..
 		'mkdir -p /output/linux-arm && ' ..
 		'mkdir -p /output/mac && ' ..
@@ -46,7 +56,7 @@ function export(args)
 		'pushd bundles/$VERSION/cross-client/linux/arm && mv docker-$VERSION docker && zip /output/linux-arm/docker.zip docker && popd && ' ..
 		'pushd bundles/$VERSION/cross-client/darwin/amd64 && mv docker-$VERSION docker && zip /output/mac/docker.zip docker && popd && ' ..
 		'pushd bundles/$VERSION/cross-client/windows/amd64 && mv docker-$VERSION.exe docker.exe && zip /output/windows/docker.zip docker.exe"'
-	)
+	docker.cmd(command)
 end
 
 -- Runs the test suite
