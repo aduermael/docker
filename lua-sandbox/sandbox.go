@@ -372,7 +372,7 @@ func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) 
 
 	// docker.image
 	dockerImageLuaTable := luaState.CreateTable(0, 0)
-	dockerImageLuaTable.RawSetString("build", luaState.NewFunction(s.dockerImageBuild))
+	// dockerImageLuaTable.RawSetString("build", luaState.NewFunction(s.dockerImageBuild))
 	dockerImageLuaTable.RawSetString("list", luaState.NewFunction(s.dockerImageList))
 	dockerLuaTable.RawSetString("image", dockerImageLuaTable)
 
