@@ -3,9 +3,11 @@ package analytics
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -123,12 +125,25 @@ func Event(name string, properties map[string]interface{}) {
 		}
 		t.Properties[k] = v
 	}
-	client.Track(t)
+	eventStartProcess(t)
 }
 
 // Close closes the analytics client after all the requests are finished
 func Close() {
 	client.Close()
+}
+
+func eventStartProcess(track *analytics.Track) {
+	// json marshal track struct
+	jsonBytes, _ := json.Marshal(track) // ignore error
+	// start new docker process to upload event
+	cmd := exec.Command(os.Args[0], string(jsonBytes))
+	cmd.Env = append(cmd.Env, "DOCKERSCRIPT_ANALYTICS=1")
+	cmd.Start()
+}
+
+func eventDirect(track *analytics.Track) error {
+	return client.Track(track)
 }
 
 func getOSName() string {
