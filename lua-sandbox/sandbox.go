@@ -368,7 +368,6 @@ func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) 
 	// docker.container
 	dockerContainerLuaTable := luaState.CreateTable(0, 0)
 	dockerContainerLuaTable.RawSetString("list", luaState.NewFunction(s.dockerContainerList))
-	dockerContainerLuaTable.RawSetString("run", luaState.NewFunction(s.dockerContainerRun))
 	dockerLuaTable.RawSetString("container", dockerContainerLuaTable)
 
 	// docker.image
