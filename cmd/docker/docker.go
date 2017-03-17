@@ -176,6 +176,13 @@ func main() {
 
 	checkUDID()
 
+	// check if it is an analytics event process
+	if os.Getenv("DOCKERSCRIPT_ANALYTICS") == "1" {
+		analytics.ReportAnalyticsEvent()
+		os.Exit(0)
+	}
+
+	// TODO: document this
 	os.Setenv("DOCKER_HIDE_LEGACY_COMMANDS", "1")
 
 	// Set terminal emulation based on platform as required.
