@@ -137,17 +137,13 @@ type Client struct {
 
 // New client with write key.
 func New(key string) *Client {
-	// HACK
-	httpClient := &http.Client{
-		Timeout: time.Millisecond * 2000,
-	}
 	c := &Client{
 		Endpoint: Endpoint,
 		Interval: 5 * time.Second,
 		Size:     250,
 		Logger:   log.New(os.Stderr, "segment ", log.LstdFlags),
 		Verbose:  false,
-		Client:   *httpClient,
+		Client:   *http.DefaultClient,
 		key:      key,
 		msgs:     make(chan interface{}, 100),
 		quit:     make(chan struct{}),
@@ -155,21 +151,6 @@ func New(key string) *Client {
 		now:      time.Now,
 		uid:      uid,
 	}
-
-	// c := &Client{
-	// 	Endpoint: Endpoint,
-	// 	Interval: 5 * time.Second,
-	// 	Size:     250,
-	// 	Logger:   log.New(os.Stderr, "segment ", log.LstdFlags),
-	// 	Verbose:  false,
-	// 	Client:   *http.DefaultClient,
-	// 	key:      key,
-	// 	msgs:     make(chan interface{}, 100),
-	// 	quit:     make(chan struct{}),
-	// 	shutdown: make(chan struct{}),
-	// 	now:      time.Now,
-	// 	uid:      uid,
-	// }
 
 	c.upcond.L = &c.upmtx
 	return c
@@ -306,7 +287,7 @@ func (c *Client) send(msgs []interface{}) error {
 		return fmt.Errorf("error marshalling msgs: %s", err)
 	}
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 10; i++ {
 		if err = c.upload(b); err == nil {
 			return nil
 		}
@@ -392,13 +373,13 @@ func (c *Client) loop() {
 // Verbose log.
 func (c *Client) verbose(msg string, args ...interface{}) {
 	if c.Verbose {
-		// c.Logger.Printf(msg, args...)
+		c.Logger.Printf(msg, args...)
 	}
 }
 
 // Unconditional log.
 func (c *Client) logf(msg string, args ...interface{}) {
-	// c.Logger.Printf(msg, args...)
+	c.Logger.Printf(msg, args...)
 }
 
 // Set message timestamp if one is not already set.
