@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/docker/distribution/uuid"
+
+	projlua "github.com/docker/docker/proj/lua"
 )
 
 const (
@@ -118,32 +120,44 @@ func (p *Project) CommandExists(cmd string) (bool, error) {
 	return false, nil
 }
 
-// Get returns project for given path
-// the docker.project folder can be in a parent
-// folder, so we have to test all the way up
-// to the root folder
-// If we can't find any docker.project folder,
-// then nil,nil is returned (no error)
-func Get(path string) (*Project, error) {
-	rootDirPath, err := findProjectRoot(path)
+// Get returns project for a given path.
+// The configuration file can be in a parent directory, so we have to test all
+// the way up to the root directory. If no configuration file is found then
+// nil,nil is returned (no error)
+// TODO: gdevillele: disable top-level functions auto-exec during loading
+func Load(path string) (*Project, error) {
+
+	projectRootDirPath, err := findProjectRoot(path)
 	if err != nil {
-		// TODO: handle actual errors, for now we suppose no project is found
+		// TODO: gdevillele: handle actual errors, for now we suppose no project is found
 		return nil, nil
 	}
-	project, err := load(rootDirPath)
+
+	// config file path
+	configFilePath := filepath.Join(projectRootDirPath, configFileName)
+
+	// retrieve project id and name
+	id, name, err := projlua.LoadProjectInfo(configFilePath)
 	if err != nil {
 		return nil, err
 	}
-	return project, nil
+
+	p := &Project{
+		RootDir: projectRootDirPath,
+		Name:    name,
+		ID:      id,
+	}
+
+	return p, nil
 }
 
-// GetForWd returns project for current working directory
-func GetForWd() (*Project, error) {
+// LoadForWd returns project for current working directory
+func LoadForWd() (*Project, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	return Get(wd)
+	return Load(wd)
 }
 
 // IsCommandOverrideAllowed indicates whether a command is allowed to be overridden
@@ -154,25 +168,6 @@ func IsCommandOverrideAllowed(cmd string) bool {
 		}
 	}
 	return false
-}
-
-// Load loads a project at the given path
-// The path needs to point to a directory that
-// contains a docker.project directory, and that
-// one needs to contains a configuration file
-func load(projectRootDirPath string) (*Project, error) {
-	// configFile := filepath.Join(projectRootDirPath, projectDirName, projectConfigFileName)
-	// jsonBytes, err := ioutil.ReadFile(configFile)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// var config Config
-	// err = json.Unmarshal(jsonBytes, &config)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &Project{Config: config, RootDirPath: projectRootDirPath}, nil
-	return nil, errors.New("not implemented")
 }
 
 // findProjectRoot looks in current directory and parents until

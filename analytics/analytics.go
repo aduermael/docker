@@ -56,7 +56,7 @@ func init() {
 	wd, err := os.Getwd()
 	if err == nil {
 		var proj *project.Project
-		proj, err = project.Get(wd)
+		proj, err = project.Load(wd)
 		if err == nil {
 			if proj != nil {
 				inproj = true
