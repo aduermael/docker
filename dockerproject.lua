@@ -9,6 +9,7 @@ project = {
 
 project.tasks = {
 	"up" = up
+	"dev" = {"func" = listComposeTasks, "description" = "my awesome function", "short" = "short description" }
 }
 
 -- functions
