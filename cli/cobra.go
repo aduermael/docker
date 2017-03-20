@@ -152,7 +152,7 @@ type UDFunction struct {
 
 // GetProjectDefinedFunctions lists project Dockerscript top level functions
 func GetProjectDefinedFunctions() []UDFunction {
-	proj, err := project.GetForWd()
+	proj, err := project.LoadForWd()
 	if err != nil || proj == nil {
 		return make([]UDFunction, 0)
 	}

@@ -192,7 +192,7 @@ func main() {
 	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
 
 	// see if we're in the context of a Docker project or not
-	proj, err := project.GetForWd()
+	proj, err := project.LoadForWd()
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return

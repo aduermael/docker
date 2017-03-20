@@ -287,7 +287,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 
 	// Add label to identify project if needed.
 	// Check whether we are in the context of a Docker project.
-	proj, pErr := project.GetForWd()
+	proj, pErr := project.LoadForWd()
 	if pErr != nil {
 		return pErr
 	}
