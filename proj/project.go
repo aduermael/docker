@@ -1,13 +1,13 @@
 package project
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/docker/distribution/uuid"
 )
 
 const (
@@ -43,20 +43,12 @@ func Init(dir, name string) error {
 		return fmt.Errorf("target directory already is the root of a Docker project")
 	}
 
-	project := &Project{Name: name, RootDir: dir}
-
-	// create project id (random hash)
-	data := make([]byte, 64)
-	_, err := rand.Read(data)
-	if err != nil {
-		return err
-	}
-	project.ID = fmt.Sprintf("%x", sha256.Sum256(data))
+	project := &Project{Name: name, RootDir: dir, ID: uuid.Generate().String()}
 
 	// write config file
 	configFile := filepath.Join(dir, configFileName)
 	sample := fmt.Sprintf(projectConfigSample, project.ID, project.Name)
-	err = ioutil.WriteFile(configFile, []byte(sample), 0644)
+	err := ioutil.WriteFile(configFile, []byte(sample), 0644)
 	if err != nil {
 		return err
 	}
