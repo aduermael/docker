@@ -93,7 +93,7 @@ func (s *Sandbox) Exec(args []string) (found bool, err error) {
 	found = true
 
 	// chdir to project root dir
-	projectRootDir := s.dockerProject.RootDirPath
+	projectRootDir := s.dockerProject.RootDir
 	currentWorkingDirectory, err := os.Getwd()
 	if err != nil {
 		return
@@ -399,9 +399,9 @@ func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) 
 	// docker.project
 	if proj != nil {
 		dockerProjectLuaTable := luaState.CreateTable(0, 0)
-		dockerProjectLuaTable.RawSetString("id", lua.LString(proj.Config.ID))
-		dockerProjectLuaTable.RawSetString("name", lua.LString(proj.Config.Name))
-		dockerProjectLuaTable.RawSetString("root", lua.LString(proj.RootDirPath))
+		dockerProjectLuaTable.RawSetString("id", lua.LString(proj.ID))
+		dockerProjectLuaTable.RawSetString("name", lua.LString(proj.Name))
+		dockerProjectLuaTable.RawSetString("root", lua.LString(proj.RootDir))
 		dockerLuaTable.RawSetString("project", dockerProjectLuaTable)
 	}
 
@@ -428,7 +428,7 @@ func (s *Sandbox) loadDockerscripts(proj *project.Project) error {
 	}
 
 	// chdir to project root dir
-	projectRootDir := s.dockerProject.RootDirPath
+	projectRootDir := s.dockerProject.RootDir
 	currentWorkingDirectory, err := os.Getwd()
 	if err != nil {
 		return err
@@ -436,28 +436,14 @@ func (s *Sandbox) loadDockerscripts(proj *project.Project) error {
 	os.Chdir(projectRootDir)
 	defer os.Chdir(currentWorkingDirectory)
 
-	// load docker.project/dockerscript.lua
-	path, exists, err := proj.GetDockerscriptPath()
+	// load config file
+	path, err := proj.GetConfigFilePath()
 	if err != nil {
 		return err
 	}
-	if exists {
-		err = s.luaState.DoFile(path)
-		if err != nil {
-			return err
-		}
-	}
-
-	// load user specific script
-	path, exists, err = proj.GetUserDockerscriptPath()
+	err = s.luaState.DoFile(path)
 	if err != nil {
 		return err
-	}
-	if exists {
-		err = s.luaState.DoFile(path)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -479,7 +465,7 @@ func (s *Sandbox) require(L *lua.LState) int {
 	// check that filepath is a relative path
 	if !filepath.IsAbs(filename) {
 		// add docker.project prefix to filename
-		filename = filepath.Join(s.dockerProject.DockerProjectDirPath(), filename)
+		filename = filepath.Join(s.dockerProject.RootDir, filename)
 	}
 
 	if filepath.Ext(filename) != ".lua" {

@@ -15,10 +15,8 @@ const (
 )
 
 type recentProject struct {
-	Name      string `json:"name"`
-	RootDir   string `json:"root"`
-	ID        string `json:"id"`
-	Timestamp int    `json:"t"`
+	Project
+	Timestamp int `json:"t"`
 }
 
 type recentProjects []*recentProject
@@ -27,13 +25,16 @@ func (a recentProjects) Len() int           { return len(a) }
 func (a recentProjects) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a recentProjects) Less(i, j int) bool { return a[i].Timestamp > a[j].Timestamp }
 
+// SaveInRecentProjects inserts project or updates existing entry in the
+// file storing recent projects
 func (p *Project) SaveInRecentProjects() error {
 	rProjects := getRecentProjects()
 	inserted := false
-	rp := &recentProject{Name: p.Config.Name, ID: p.Config.ID, RootDir: p.RootDirPath, Timestamp: int(time.Now().Unix())}
+
+	rp := &recentProject{Project: *p, Timestamp: int(time.Now().Unix())}
 
 	for i, rProject := range rProjects {
-		if rProject.ID == p.Config.ID {
+		if rProject.ID == rp.ID {
 			rProjects[i] = rp
 			inserted = true
 			break
@@ -54,12 +55,12 @@ func (p *Project) SaveInRecentProjects() error {
 	return nil
 }
 
+// GetRecentProjects returns the ordered list of recent projects.
 func GetRecentProjects() []*Project {
 	rp := getRecentProjects()
 	resp := make([]*Project, len(rp))
-
 	for i, p := range rp {
-		resp[i] = &Project{Config: Config{ID: p.ID, Name: p.Name}, RootDirPath: p.RootDir}
+		resp[i] = &p.Project
 	}
 	return resp
 }
