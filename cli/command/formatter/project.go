@@ -61,9 +61,9 @@ func (c *projectContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *projectContext) Name() string {
-	return c.v.Config.Name
+	return c.v.Name
 }
 
 func (c *projectContext) RootDir() string {
-	return c.v.RootDirPath
+	return c.v.RootDir
 }

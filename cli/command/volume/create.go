@@ -67,8 +67,8 @@ func runCreate(dockerCli command.Cli, opts createOptions) error {
 		return pErr
 	}
 	if proj != nil {
-		volReq.Labels["docker.project.id:"+proj.Config.ID] = ""
-		volReq.Labels["docker.project.name:"+proj.Config.Name] = ""
+		volReq.Labels["docker.project.id:"+proj.ID] = ""
+		volReq.Labels["docker.project.name:"+proj.Name] = ""
 	}
 
 	vol, err := client.VolumeCreate(context.Background(), volReq)

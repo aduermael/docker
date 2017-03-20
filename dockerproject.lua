@@ -1,7 +1,5 @@
 -- Docker project configuration
 
--- config 
-
 project = {
 	"id" = "projectid",
 	"name" = "project-name"
@@ -9,15 +7,15 @@ project = {
 
 project.tasks = {
 	"up" = up
-	"dev" = {"func" = listComposeTasks, "description" = "my awesome function", "short" = "short description" }
 }
 
 -- functions
 
 function up(args)
-	local docker.cmdSilent('run --rm lookForComposeFile')
-	local mounts = docker.cmdSilent('run --rm listRequiredMounts')
-	docker.cmd('run dockerCompose' .. args)
+	print("up test")
+	-- local docker.cmdSilent('run --rm lookForComposeFile')
+	-- local mounts = docker.cmdSilent('run --rm listRequiredMounts')
+	-- docker.cmd('run dockerCompose' .. args)
 end
 
 -- MORE

@@ -54,8 +54,8 @@ func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error 
 		return pErr
 	}
 	if proj != nil {
-		options.labels.Set("docker.project.id:" + proj.Config.ID)
-		options.labels.Set("docker.project.name:" + proj.Config.Name)
+		options.labels.Set("docker.project.id:" + proj.ID)
+		options.labels.Set("docker.project.name:" + proj.Name)
 	}
 
 	var in io.Reader = dockerCli.In()

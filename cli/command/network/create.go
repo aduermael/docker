@@ -103,8 +103,8 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 		return pErr
 	}
 	if proj != nil {
-		nc.Labels["docker.project.id:"+proj.Config.ID] = ""
-		nc.Labels["docker.project.name:"+proj.Config.Name] = ""
+		nc.Labels["docker.project.id:"+proj.ID] = ""
+		nc.Labels["docker.project.name:"+proj.Name] = ""
 	}
 
 	resp, err := client.NetworkCreate(context.Background(), opts.name, nc)

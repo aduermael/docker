@@ -159,8 +159,8 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, containe
 		return nil, pErr
 	}
 	if proj != nil {
-		config.Labels["docker.project.id:"+proj.Config.ID] = ""
-		config.Labels["docker.project.name:"+proj.Config.Name] = ""
+		config.Labels["docker.project.id:"+proj.ID] = ""
+		config.Labels["docker.project.name:"+proj.Name] = ""
 	}
 
 	var (

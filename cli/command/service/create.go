@@ -70,8 +70,8 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 		return pErr
 	}
 	if proj != nil {
-		opts.labels.Set("docker.project.id:" + proj.Config.ID)
-		opts.labels.Set("docker.project.name:" + proj.Config.Name)
+		opts.labels.Set("docker.project.id:" + proj.ID)
+		opts.labels.Set("docker.project.name:" + proj.Name)
 	}
 
 	service, err := opts.ToService()

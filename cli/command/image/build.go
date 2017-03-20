@@ -292,8 +292,8 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		return pErr
 	}
 	if proj != nil {
-		buildOptions.Labels["docker.project.id:"+proj.Config.ID] = ""
-		buildOptions.Labels["docker.project.name:"+proj.Config.Name] = ""
+		buildOptions.Labels["docker.project.id:"+proj.ID] = ""
+		buildOptions.Labels["docker.project.name:"+proj.Name] = ""
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)
