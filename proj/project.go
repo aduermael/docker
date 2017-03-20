@@ -17,25 +17,7 @@ import (
 )
 
 const (
-	// name of the project config directory
-	projectDirName = "docker.project"
-	// project config file name
-	projectConfigFileName = "config.json"
-	// name of the main dockerscript file
-	dockerscriptFileName = "dockerscript.lua"
-	// name of user specific dockerscripts (%s is replaced by the username)
-	userDockerscriptFileName = "%s-dockerscript.lua"
-	// directory wher to put user specific scripts
-	userDockerscriptDirName = "users"
-	// env var that can prevent `docker init` from dumping samples
-	envVarDockerProjectNoSample = "DOCKER_PROJECT_NO_SAMPLE"
-
-	// YAML related
-	// // name of the file defining project tasks and env variables
-	// projectFileName = "docker.yml"
-	// // similar to docker.yml, can be used to override or define project
-	// // tasks or env variables specific to a user
-	// projectUserFileName = "user.yml"
+	configFileName = "dockerproject.lua"
 )
 
 var (
