@@ -58,7 +58,7 @@ func Init(dir, name string) error {
 	return nil
 }
 
-// Returns relative path to configuration file
+// GetConfigFilePath returns absolute path to configuration file
 func (p *Project) GetConfigFilePath() (path string, err error) {
 	absPath := filepath.Join(p.RootDir, configFileName)
 	_, err = os.Stat(absPath)
