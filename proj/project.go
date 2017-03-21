@@ -286,14 +286,14 @@ func populateLuaState(ls *lua.LState, p *Project) error {
 	dockerVolumeLuaTable.RawSetString("list", ls.NewFunction(dockerVolumeList))
 	dockerLuaTable.RawSetString("volume", dockerVolumeLuaTable)
 
-	// docker.project
-	if p != nil {
-		dockerProjectLuaTable := ls.CreateTable(0, 0)
-		dockerProjectLuaTable.RawSetString("id", lua.LString(p.ID()))
-		dockerProjectLuaTable.RawSetString("name", lua.LString(p.Name()))
-		dockerProjectLuaTable.RawSetString("root", lua.LString(p.RootDir()))
-		dockerLuaTable.RawSetString("project", dockerProjectLuaTable)
-	}
+	// // docker.project
+	// if p != nil {
+	// 	dockerProjectLuaTable := ls.CreateTable(0, 0)
+	// 	dockerProjectLuaTable.RawSetString("id", lua.LString(p.ID()))
+	// 	dockerProjectLuaTable.RawSetString("name", lua.LString(p.Name()))
+	// 	dockerProjectLuaTable.RawSetString("root", lua.LString(p.RootDir()))
+	// 	dockerLuaTable.RawSetString("project", dockerProjectLuaTable)
+	// }
 
 	err := sandbox.AddTableToLuaState(dockerLuaTable, ls, "docker")
 	if err != nil {
