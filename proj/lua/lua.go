@@ -12,7 +12,11 @@ func LoadProjectInfo(projectConfigFilePath string) (id string, name string, err 
 	if pLuaState == nil {
 		return "", "", errors.New("failed to create lua state")
 	}
-	emptyLuaState(pLuaState)
+
+	// empty Lua state
+	pLuaState.Env.ForEach(func(k, v lua.LValue) {
+		pLuaState.Env.RawSet(k, lua.LNil)
+	})
 
 	err = pLuaState.DoFile(projectConfigFilePath)
 	if err != nil {
@@ -32,13 +36,6 @@ func LoadProjectInfo(projectConfigFilePath string) (id string, name string, err 
 		return "", "", err
 	}
 	return id, name, nil
-}
-
-func emptyLuaState(ls *lua.LState) {
-	// remove everything that is in the Lua state environment.
-	ls.Env.ForEach(func(k, v lua.LValue) {
-		ls.Env.RawSet(k, lua.LNil)
-	})
 }
 
 func getTable(ls *lua.LState, name string) (*lua.LTable, error) {
