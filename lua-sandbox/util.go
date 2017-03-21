@@ -6,6 +6,16 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+// PopStringParam ...
+func PopStringParam(L *lua.LState) (string, bool, error) {
+	return popStringParam(L)
+}
+
+// PopBoolParam ...
+func PopBoolParam(L *lua.LState) (bool, bool, error) {
+	return popBoolParam(L)
+}
+
 // popStringParam gets the next argument and makes sure it is a string.
 // If there is a next argument but it is not a string, an error is returned.
 // If there isn't any next argument, no error is returned, but the second
