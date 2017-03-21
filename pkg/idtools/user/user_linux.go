@@ -18,6 +18,16 @@ func GetUsername() (string, error) {
 	return usr.Name, nil
 }
 
+// GetHomeDirPath returns the home directory path for the current user
+func GetHomeDirPath() (string, error) {
+	uid := os.Getuid()
+	usr, err := idtools.LookupUID(uid)
+	if err != nil {
+		return "", err
+	}
+	return usr.Home, nil
+}
+
 // // GetStatic returns the home directory for the current user without calling
 // // os/user.Current(). This is useful for static-linked binary on glibc-based
 // // system, because a call to os/user.Current() in a static binary leads to
