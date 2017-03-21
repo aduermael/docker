@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	project "github.com/docker/docker/proj"
+	project "github.com/docker/docker/proj/project"
 	"github.com/spf13/cobra"
 )
 

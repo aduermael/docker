@@ -7,8 +7,6 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-
-	project "github.com/docker/docker/proj"
 )
 
 // SetupRootCommand sets default usage, help, and error handling for the
@@ -152,24 +150,27 @@ type UDFunction struct {
 }
 
 // GetProjectDefinedFunctions lists project Dockerscript top level functions
+// TODO: gdevillele: implement this
 func GetProjectDefinedFunctions() []UDFunction {
-	proj, err := project.LoadForWd()
-	if err != nil || proj == nil {
-		return make([]UDFunction, 0)
-	}
-	cmds, err := proj.ListCommands()
-	if err != nil {
-		return make([]UDFunction, 0)
-	}
-	result := make([]UDFunction, 0)
-	for _, cmd := range cmds {
-		result = append(result, UDFunction{
-			Name:        cmd.Name,
-			Description: cmd.Description,
-			Padding:     11,
-		})
-	}
-	return result
+	return make([]UDFunction, 0)
+	// proj, err := project.LoadForWd()
+	// if err != nil || proj == nil {
+	// 	return make([]UDFunction, 0)
+	// }
+	// cmds, err := proj.ListCommands()
+	// if err != nil {
+	// 	return make([]UDFunction, 0)
+	// }
+
+	// result := make([]UDFunction, 0)
+	// for _, cmd := range cmds {
+	// 	result = append(result, UDFunction{
+	// 		Name:        cmd.Name,
+	// 		Description: cmd.Description,
+	// 		Padding:     11,
+	// 	})
+	// }
+	// return result
 }
 
 var usageTemplate = `Usage:
