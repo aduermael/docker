@@ -6,8 +6,8 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// print takes one string argument and write its content into the cli out stream.
-func (s *Sandbox) print(L *lua.LState) int {
+// luaPrint takes one string argument and write its content into the cli out stream.
+func luaPrint(L *lua.LState) int {
 
 	argc := L.GetTop() // get number of arguments
 	if argc <= 0 {

@@ -8,7 +8,7 @@ import (
 )
 
 // returns current user's username
-func (s *Sandbox) username(L *lua.LState) int {
+func luaUsername(L *lua.LState) int {
 	usr, err := user.Current()
 	if err != nil {
 		L.RaiseError(err.Error())
@@ -19,7 +19,7 @@ func (s *Sandbox) username(L *lua.LState) int {
 }
 
 // returns current user's home directory path
-func (s *Sandbox) home(L *lua.LState) int {
+func luaHome(L *lua.LState) int {
 	usr, err := user.Current()
 	if err != nil {
 		L.RaiseError(err.Error())
@@ -30,7 +30,7 @@ func (s *Sandbox) home(L *lua.LState) int {
 }
 
 // sets environment variable
-func (s *Sandbox) setEnv(L *lua.LState) int {
+func luaSetEnv(L *lua.LState) int {
 	// retrieve string argument
 	key, found, err := popStringParam(L)
 	if err != nil {
@@ -62,7 +62,7 @@ func (s *Sandbox) setEnv(L *lua.LState) int {
 }
 
 // returns environment for given key
-func (s *Sandbox) getEnv(L *lua.LState) int {
+func luaGetEnv(L *lua.LState) int {
 	// retrieve string argument
 	key, found, err := popStringParam(L)
 	if err != nil {
