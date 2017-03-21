@@ -60,7 +60,6 @@ func (p *Project) GetConfigFilePath() (path string, err error) {
 
 // ListCommands returns commands defined for the project.
 // This function parses the main "dockerfile.lua" but also the
-// <CURRENT_USER_USERNAME>-dockerfile.lua if it exists.
 func (p *Project) ListCommands() ([]ProjectCommand, error) {
 	// // list project commands
 	// dockerscript := filepath.Join(p.DockerProjectDirPath(), "dockerscript.lua")
@@ -116,7 +115,7 @@ func (p *Project) CommandExists(cmd string) (bool, error) {
 // nil,nil is returned (no error)
 func Load(path string) (*Project, error) {
 
-	projectRootDirPath, err := findProjectRoot(path)
+	projectRootDirPath, err := iface.FindProjectRoot(path)
 	if err != nil {
 		// TODO: gdevillele: handle actual errors, for now we suppose no project is found
 		return nil, nil
@@ -170,27 +169,6 @@ func IsCommandOverrideAllowed(cmd string) bool {
 		}
 	}
 	return false
-}
-
-// findProjectRoot looks in current directory and parents until
-// it finds a project config file. It then returns the parent
-// of that directory, the root of the Docker project.
-func findProjectRoot(path string) (projectRootPath string, err error) {
-	path = filepath.Clean(path)
-	for {
-		b := iface.IsProjectRoot(path)
-		if b {
-			projectRootPath = path
-			return
-		}
-		// break after / has been tested
-		if path == filepath.Dir(path) {
-			break
-		}
-		path = filepath.Dir(path)
-	}
-	err = errors.New("can't find project root directory")
-	return
 }
 
 ////////////////////////////////////////
