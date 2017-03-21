@@ -1,12 +1,13 @@
 -- Docker project configuration
 
 project = {
-	"id" = "projectid",
-	"name" = "project-name"
+	id = '12345',
+	name = 'youpi',
 }
 
+
 project.tasks = {
-	"up" = up
+	up = up,
 }
 
 -- functions
