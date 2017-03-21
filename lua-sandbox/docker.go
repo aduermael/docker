@@ -16,7 +16,7 @@ import (
 )
 
 // dockerCmd executes the docker command passed as argument.
-func (s *Sandbox) dockerCmd(L *lua.LState) int {
+func dockerCmd(L *lua.LState) int {
 	var err error
 
 	dockerCli := newDockerCli()
@@ -53,7 +53,7 @@ func (s *Sandbox) dockerCmd(L *lua.LState) int {
 // and returns output and error streams as Lua strings
 // if there's no error, only output is returned (err will be nil)
 // example: local out, err = dockerSilentCmd('run myimage')
-func (s *Sandbox) dockerSilentCmd(L *lua.LState) int {
+func dockerSilentCmd(L *lua.LState) int {
 	var err error
 
 	// retrieve parameter
@@ -88,10 +88,10 @@ func (s *Sandbox) dockerSilentCmd(L *lua.LState) int {
 	}
 
 	outStr := strings.TrimSpace(outbuf.String())
-	s.luaState.Push(lua.LString(outStr))
+	L.Push(lua.LString(outStr))
 	errStr := strings.TrimSpace(errbuf.String())
 	if errStr != "" {
-		s.luaState.Push(lua.LString(errStr))
+		L.Push(lua.LString(errStr))
 		return 2
 	}
 	return 1
