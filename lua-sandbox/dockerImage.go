@@ -16,7 +16,7 @@ import (
 // It accepts one (optional) string argument, identical to CLI arguments
 // received by `docker image ls` command.
 // docker.image.list(arguments string)
-func (p *Project) dockerImageList(L *lua.LState) int {
+func (s *Sandbox) dockerImageList(L *lua.LState) int {
 	var err error
 
 	// retrieve string argument
@@ -76,12 +76,12 @@ func (p *Project) dockerImageList(L *lua.LState) int {
 	}
 
 	// Lua table containing all images
-	imagesLuaTable := s.luaState.CreateTable(0, 0)
+	imagesLuaTable := L.CreateTable(0, 0)
 
 	// loop over the images
 	for _, image := range images {
 		// Lua table containing one image
-		imageLuaTable := s.luaState.CreateTable(0, 0)
+		imageLuaTable := L.CreateTable(0, 0)
 
 		// image id
 		// removing prefixes like in image ids like:
@@ -95,7 +95,7 @@ func (p *Project) dockerImageList(L *lua.LState) int {
 		// imageLuaTable.RawSetString("sharedSize", lua.LNumber(float64(image.SharedSize)))
 		imageLuaTable.RawSetString("size", lua.LNumber(float64(image.Size)))
 		// add RepoTags
-		repoTags := s.luaState.CreateTable(0, 0)
+		repoTags := L.CreateTable(0, 0)
 		for _, repoTag := range image.RepoTags {
 			repoTags.Append(lua.LString(repoTag))
 		}
@@ -105,7 +105,7 @@ func (p *Project) dockerImageList(L *lua.LState) int {
 		imagesLuaTable.Append(imageLuaTable)
 	}
 
-	s.luaState.Push(imagesLuaTable)
+	L.Push(imagesLuaTable)
 	return 1
 }
 
