@@ -1,6 +1,6 @@
 package formatter
 
-import project "github.com/docker/docker/proj"
+import project "github.com/docker/docker/proj/project"
 
 const (
 	defaultProjectQuietFormat = "{{.RootDir}}"
@@ -28,10 +28,10 @@ func NewProjectFormat(source string, quiet bool) Format {
 }
 
 // ProjectWrite writes formatted projects using the Context
-func ProjectWrite(ctx Context, projects []*project.Project) error {
+func ProjectWrite(ctx Context, projects []project.Project) error {
 	render := func(format func(subContext subContext) error) error {
 		for _, p := range projects {
-			if err := format(&projectContext{v: *p}); err != nil {
+			if err := format(&projectContext{v: p}); err != nil {
 				return err
 			}
 		}
@@ -61,9 +61,9 @@ func (c *projectContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *projectContext) Name() string {
-	return c.v.Name
+	return c.v.Name()
 }
 
 func (c *projectContext) RootDir() string {
-	return c.v.RootDir
+	return c.v.RootDir()
 }

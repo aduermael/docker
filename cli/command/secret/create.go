@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/system"
-	project "github.com/docker/docker/proj"
+	project "github.com/docker/docker/proj/project"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -49,13 +49,10 @@ func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error 
 
 	// Add label to identify project if needed.
 	// Check whether we are in the context of a Docker project.
-	proj, pErr := project.LoadForWd()
-	if pErr != nil {
-		return pErr
-	}
+	proj := project.CurrentProject
 	if proj != nil {
-		options.labels.Set("docker.project.id:" + proj.ID)
-		options.labels.Set("docker.project.name:" + proj.Name)
+		options.labels.Set("docker.project.id:" + proj.ID())
+		options.labels.Set("docker.project.name:" + proj.Name())
 	}
 
 	var in io.Reader = dockerCli.In()

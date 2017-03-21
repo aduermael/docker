@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/cli/command/image"
 	apiclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
-	project "github.com/docker/docker/proj"
+	project "github.com/docker/docker/proj/project"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -154,13 +154,10 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, containe
 
 	// Add label to identify project if needed.
 	// Check whether we are in the context of a Docker project.
-	proj, pErr := project.LoadForWd()
-	if pErr != nil {
-		return nil, pErr
-	}
+	proj := project.CurrentProject
 	if proj != nil {
-		config.Labels["docker.project.id:"+proj.ID] = ""
-		config.Labels["docker.project.name:"+proj.Name] = ""
+		config.Labels["docker.project.id:"+proj.ID()] = ""
+		config.Labels["docker.project.name:"+proj.Name()] = ""
 	}
 
 	var (

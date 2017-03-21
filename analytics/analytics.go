@@ -14,8 +14,8 @@ import (
 	"strings"
 
 	"github.com/docker/docker/cli/config"
+	user "github.com/docker/docker/pkg/idtools/user"
 	project "github.com/docker/docker/proj"
-	projectUser "github.com/docker/docker/proj/user"
 	analytics "github.com/segmentio/analytics-go"
 )
 
@@ -155,7 +155,7 @@ func getIsDockerEmployee() bool {
 }
 
 func getSystemUsername() string {
-	usrName, err := projectUser.GetUsername()
+	usrName, err := user.GetUsername()
 	if err != nil {
 		return ""
 	}

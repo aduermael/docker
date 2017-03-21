@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
-	project "github.com/docker/docker/proj"
+	project "github.com/docker/docker/proj/project"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 )
@@ -98,13 +98,10 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 
 	// Add label to identify project if needed.
 	// Check whether we are in the context of a Docker project.
-	proj, pErr := project.LoadForWd()
-	if pErr != nil {
-		return pErr
-	}
+	proj := project.CurrentProject
 	if proj != nil {
-		nc.Labels["docker.project.id:"+proj.ID] = ""
-		nc.Labels["docker.project.name:"+proj.Name] = ""
+		nc.Labels["docker.project.id:"+proj.ID()] = ""
+		nc.Labels["docker.project.name:"+proj.Name()] = ""
 	}
 
 	resp, err := client.NetworkCreate(context.Background(), opts.name, nc)

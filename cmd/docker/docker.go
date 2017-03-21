@@ -18,7 +18,8 @@ import (
 	"github.com/docker/docker/dockerversion"
 	sandbox "github.com/docker/docker/lua-sandbox"
 	"github.com/docker/docker/pkg/term"
-	project "github.com/docker/docker/proj"
+	projectImpl "github.com/docker/docker/proj"
+	"github.com/docker/docker/proj/project"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -192,17 +193,18 @@ func main() {
 	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
 
 	// see if we're in the context of a Docker project or not
-	proj, err := project.LoadForWd()
+	proj, err := projectImpl.LoadForWd()
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return
 	}
-
 	if proj != nil {
-		err := proj.SaveInRecentProjects()
+		err := project.SaveInRecentProjects(proj)
 		if err != nil {
 			logrus.Fatalln(err)
 		}
+		// store global reference to current project
+		project.CurrentProject = proj
 	}
 
 	cmd := newDockerCommand(dockerCli)
@@ -224,10 +226,10 @@ func main() {
 			for _, mainCmd := range mainCmds {
 				if cmdName == mainCmd.Name() {
 					// check if this override is allowed
-					if project.IsCommandOverrideAllowed(cmdName) == false {
+					if projectImpl.IsCommandOverrideAllowed(cmdName) == false {
 						errorMessage := "error: " + cmdName + " can't be overridden.\n" +
 							"this is the list of docker commands that can be overridden:\n" +
-							strings.Join(project.CommandsAllowedToBeOverridden, ", ")
+							strings.Join(projectImpl.CommandsAllowedToBeOverridden, ", ")
 						fmt.Fprintln(stderr, errorMessage)
 						os.Exit(1)
 					}
@@ -236,7 +238,7 @@ func main() {
 			}
 
 			// create Lua sandbox
-			sb, err := sandbox.NewSandbox(proj)
+			sb, err := sandbox.CreateSandbox()
 			if err != nil {
 				fmt.Fprintln(stderr, err.Error())
 				os.Exit(1)

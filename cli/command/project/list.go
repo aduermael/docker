@@ -4,7 +4,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
-	project "github.com/docker/docker/proj"
+	project "github.com/docker/docker/proj/project"
 	"github.com/spf13/cobra"
 )
 

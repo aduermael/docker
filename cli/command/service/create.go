@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	project "github.com/docker/docker/proj"
+	project "github.com/docker/docker/proj/project"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -65,13 +65,10 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 
 	// Add label to identify project if needed.
 	// Check whether we are in the context of a Docker project.
-	proj, pErr := project.LoadForWd()
-	if pErr != nil {
-		return pErr
-	}
+	proj := project.CurrentProject
 	if proj != nil {
-		opts.labels.Set("docker.project.id:" + proj.ID)
-		opts.labels.Set("docker.project.name:" + proj.Name)
+		opts.labels.Set("docker.project.id:" + proj.ID())
+		opts.labels.Set("docker.project.name:" + proj.Name())
 	}
 
 	service, err := opts.ToService()
