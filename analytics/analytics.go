@@ -15,7 +15,7 @@ import (
 
 	"github.com/docker/docker/cli/config"
 	user "github.com/docker/docker/pkg/idtools/user"
-	project "github.com/docker/docker/proj"
+	project "github.com/docker/docker/proj/project"
 	analytics "github.com/segmentio/analytics-go"
 )
 
@@ -55,14 +55,22 @@ func init() {
 	// see if command is executed in Docker project context
 	wd, err := os.Getwd()
 	if err == nil {
-		var proj *project.Project
-		proj, err = project.Load(wd)
+		_, err := project.FindProjectRoot(wd)
 		if err == nil {
-			if proj != nil {
-				inproj = true
-			}
+			inproj = true
 		}
 	}
+
+	// wd, err := os.Getwd()
+	// if err == nil {
+	// 	var proj *project.Project
+	// 	proj, err = project.Load(wd)
+	// 	if err == nil {
+	// 		if proj != nil {
+	// 			inproj = true
+	// 		}
+	// 	}
+	// }
 
 	var usernamesArr = make([]string, 0)
 
