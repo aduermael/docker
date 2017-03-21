@@ -6,7 +6,7 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// luaPrint takes one string argument and write its content into the cli out stream.
+// luaPrint takes one string argument and write its content into the process' stdout stream.
 func luaPrint(L *lua.LState) int {
 
 	argc := L.GetTop() // get number of arguments
