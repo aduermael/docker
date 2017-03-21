@@ -2,30 +2,30 @@ package sandbox
 
 import (
 	"os"
-	"os/user"
 
+	user "github.com/docker/docker/pkg/idtools/user"
 	lua "github.com/yuin/gopher-lua"
 )
 
 // returns current user's username
 func luaUsername(L *lua.LState) int {
-	usr, err := user.Current()
+	username, err := user.GetUsername()
 	if err != nil {
 		L.RaiseError(err.Error())
 		return 0
 	}
-	L.Push(lua.LString(usr.Username))
+	L.Push(lua.LString(username))
 	return 1
 }
 
 // returns current user's home directory path
 func luaHome(L *lua.LState) int {
-	usr, err := user.Current()
+	home, err := user.GetHomeDirPath()
 	if err != nil {
 		L.RaiseError(err.Error())
 		return 0
 	}
-	L.Push(lua.LString(usr.HomeDir))
+	L.Push(lua.LString(home))
 	return 1
 }
 
