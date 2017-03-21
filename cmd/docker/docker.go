@@ -198,13 +198,15 @@ func main() {
 		fmt.Fprintln(stderr, err.Error())
 		return
 	}
+
+	// store global reference to current project
+	project.CurrentProject = proj
+
 	if proj != nil {
 		err := project.SaveInRecentProjects(proj)
 		if err != nil {
 			logrus.Fatalln(err)
 		}
-		// store global reference to current project
-		project.CurrentProject = proj
 	}
 
 	cmd := newDockerCommand(dockerCli)
