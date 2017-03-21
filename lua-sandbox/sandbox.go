@@ -3,10 +3,7 @@ package sandbox
 import (
 	"errors"
 	"os"
-	"path/filepath"
-	"strings"
 
-	project "github.com/docker/docker/proj"
 	luajson "github.com/yuin/gopher-json"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -15,51 +12,53 @@ import (
 var (
 	errLuaStateNil      = errors.New("Lua state is nil")
 	errLuaStateCreation = errors.New("Lua state creation error")
-	errDockerProjectNil = errors.New("docker project is nil")
 	errLuaStateReset    = errors.New("Lua state reset error")
 )
 
 // Sandbox type definition
 type Sandbox struct {
-	luaState      *lua.LState
-	dockerProject *project.Project
+	luaState *lua.LState
 }
 
-// NewSandbox creates a new Lua Sandbox.
-func NewSandbox(proj *project.Project) (*Sandbox, error) {
+// GetLuaState returns a pointer on the sandbox' Lua state
+func (s *Sandbox) GetLuaState() *lua.LState {
+	return s.luaState
+}
+
+// CreateSandbox creates a basic sandbox
+func CreateSandbox() (*Sandbox, error) {
 	var err error
 
-	if proj == nil {
-		return nil, errDockerProjectNil
-	}
-
 	// create Lua state
-	luaState := lua.NewState()
-	if luaState == nil {
+	pLuaState := lua.NewState()
+	if pLuaState == nil {
 		return nil, errLuaStateCreation
 	}
 
-	// reset Lua state to our default state
-	err = resetLuaState(luaState)
+	// reset Lua state to our default state (minimal Lua sandbox)
+	err = resetLuaState(pLuaState)
 	if err != nil {
 		return nil, err
 	}
+
+	// add Lua functions to the sandbox
+
+	// io
+	pLuaState.Env.RawSetString("print", pLuaState.NewFunction(luaPrint))
+
+	// os
+	osLuaTable := pLuaState.CreateTable(0, 0)
+	osLuaTable.RawSetString("username", pLuaState.NewFunction(luaUsername))
+	osLuaTable.RawSetString("home", pLuaState.NewFunction(luaHome))
+	osLuaTable.RawSetString("setEnv", pLuaState.NewFunction(luaSetEnv))
+	osLuaTable.RawSetString("getEnv", pLuaState.NewFunction(luaGetEnv))
+	pLuaState.Env.RawSetString("os", osLuaTable)
+
+	// expose json library in the Lua sandbox
+	luajson.Expose(pLuaState)
 
 	result := &Sandbox{
-		luaState:      luaState,
-		dockerProject: proj,
-	}
-
-	// populate Lua state
-	err = result.populateLuaState(result.luaState, proj)
-	if err != nil {
-		return nil, err
-	}
-
-	// load user's project scripts
-	err = result.loadDockerscripts(proj)
-	if err != nil {
-		return nil, err
+		luaState: pLuaState,
 	}
 
 	return result, nil
@@ -67,86 +66,85 @@ func NewSandbox(proj *project.Project) (*Sandbox, error) {
 
 // Exec looks for a top level function in the sandbox (args[0])
 // and executes it passing remaining arguments (args[1:])
+// func (s *Sandbox) Exec(wd string, function string, args []string) (found bool, err error) {
 func (s *Sandbox) Exec(args []string) (found bool, err error) {
-	found = false
-	err = nil
+	// found = false
+	// err = nil
 
-	if len(args) == 0 {
-		err = errors.New("at least one argument required (function name)")
-		return
-	}
+	// if len(args) == 0 {
+	// 	err = errors.New("at least one argument required (function name)")
+	// 	return
+	// }
 
-	functionName := args[0]
+	// functionName := args[0]
 
-	value := s.luaState.GetGlobal(functionName)
-	if value == lua.LNil {
-		return
-	}
+	// value := s.luaState.GetGlobal(functionName)
+	// if value == lua.LNil {
+	// 	return
+	// }
 
-	fn, ok := value.(*lua.LFunction)
-	if !ok {
-		err = errors.New(functionName + " is not a function")
-		return
-	}
+	// fn, ok := value.(*lua.LFunction)
+	// if !ok {
+	// 	err = errors.New(functionName + " is not a function")
+	// 	return
+	// }
 
-	// from here we consider function has been found
-	found = true
+	// // from here we consider function has been found
+	// found = true
 
-	// chdir to project root dir
-	projectRootDir := s.dockerProject.RootDir
-	currentWorkingDirectory, err := os.Getwd()
-	if err != nil {
-		return
-	}
-	os.Chdir(projectRootDir)
-	defer os.Chdir(currentWorkingDirectory)
+	// // chdir to project root dir
+	// projectRootDir := s.dockerProject.RootDir
+	// currentWorkingDirectory, err := os.Getwd()
+	// if err != nil {
+	// 	return
+	// }
+	// os.Chdir(projectRootDir)
+	// defer os.Chdir(currentWorkingDirectory)
 
-	argsTbl := s.luaState.CreateTable(0, 0)
-	for _, arg := range args[1:] {
-		if strings.Contains(arg, " ") {
-			arg = strings.Replace(arg, "\"", "\\\"", -1)
-			arg = "\"" + arg + "\""
-		}
-		argsTbl.Append(lua.LString(arg))
-	}
+	// argsTbl := s.luaState.CreateTable(0, 0)
+	// for _, arg := range args[1:] {
+	// 	if strings.Contains(arg, " ") {
+	// 		arg = strings.Replace(arg, "\"", "\\\"", -1)
+	// 		arg = "\"" + arg + "\""
+	// 	}
+	// 	argsTbl.Append(lua.LString(arg))
+	// }
 
-	err = s.luaState.CallByParam(lua.P{
-		Fn:      fn,
-		NRet:    0,
-		Protect: true,
-	}, argsTbl)
-	return
+	// err = s.luaState.CallByParam(lua.P{
+	// 	Fn:      fn,
+	// 	NRet:    0,
+	// 	Protect: true,
+	// }, argsTbl)
+	// return
+	return false, errors.New("NOT IMPLEMENTED")
 }
 
-// ContainsGlobalFunction indicates whether a function exists in the sandbox
-func (s *Sandbox) ContainsGlobalFunction(name string) bool {
-	value := s.luaState.GetGlobal(name)
-	if value != lua.LNil {
-		_, ok := value.(*lua.LFunction)
-		if ok {
-			return true
-		}
-	}
-	return false
-}
+// TODO
+// func (s *Sandbox) Find(name string) (...) { // find symbol
+// }
+// func (s *Sandbox) FindFunc(name string) ...
+// value := s.luaState.GetGlobal(name)
+// if value != lua.LNil {
+// 	_, ok := value.(*lua.LFunction)
+// 	if ok {
+// 		return true
+// 	}
+// }
+// return false
 
-// doFile loads Lua file into Sandbox's Lua state
-func (s *Sandbox) doFile(fpath string) (found bool, err error) {
+// DoFile loads Lua file into Sandbox's Lua state
+func (s *Sandbox) DoFile(fpath string) (found bool, err error) {
 	if s.luaState == nil {
 		err = errLuaStateNil
 		return
 	}
 
-	found = false
-
 	_, err = os.Stat(fpath)
 	if os.IsNotExist(err) {
-		return
+		return false, nil
 	}
 
-	found = true
-	err = s.luaState.DoFile(fpath)
-	return
+	return true, s.luaState.DoFile(fpath)
 }
 
 // doString loads Lua string into Sandbox's Lua state
@@ -235,8 +233,8 @@ func (s *Sandbox) msiRepresentation(tbl *lua.LTable) map[string]interface{} {
 ///
 ////////////////////////////////////////////////////////////
 
-// addTable adds a lua table to the sandbox
-func addTableToLuaState(table *lua.LTable, state *lua.LState, name string) error {
+// AddTableToLuaState adds a lua table to the sandbox
+func AddTableToLuaState(table *lua.LTable, state *lua.LState, name string) error {
 	if state == nil {
 		return errLuaStateNil
 	}
@@ -311,159 +309,4 @@ func resetLuaState(s *lua.LState) error {
 	s.SetGlobal("sandbox_env", lua.LNil)
 
 	return nil
-}
-
-// populateLuaState adds functions to the Lua sandbox
-func (s *Sandbox) populateLuaState(luaState *lua.LState, proj *project.Project) error {
-
-	// require
-	luaState.Env.RawSetString("require", luaState.NewFunction(s.require))
-
-	// print
-	luaState.Env.RawSetString("print", luaState.NewFunction(s.print))
-
-	// os
-	osLuaTable := luaState.CreateTable(0, 0)
-	osLuaTable.RawSetString("username", luaState.NewFunction(s.username))
-	osLuaTable.RawSetString("home", luaState.NewFunction(s.home))
-	osLuaTable.RawSetString("setEnv", luaState.NewFunction(s.setEnv))
-	osLuaTable.RawSetString("getEnv", luaState.NewFunction(s.getEnv))
-	luaState.Env.RawSetString("os", osLuaTable)
-
-	// docker
-	dockerLuaTable := luaState.CreateTable(0, 0)
-	dockerLuaTable.RawSetString("cmd", luaState.NewFunction(s.dockerCmd))
-	dockerLuaTable.RawSetString("silentCmd", luaState.NewFunction(s.dockerSilentCmd))
-
-	// docker.container
-	dockerContainerLuaTable := luaState.CreateTable(0, 0)
-	dockerContainerLuaTable.RawSetString("list", luaState.NewFunction(s.dockerContainerList))
-	dockerLuaTable.RawSetString("container", dockerContainerLuaTable)
-
-	// docker.image
-	dockerImageLuaTable := luaState.CreateTable(0, 0)
-	// dockerImageLuaTable.RawSetString("build", luaState.NewFunction(s.dockerImageBuild))
-	dockerImageLuaTable.RawSetString("list", luaState.NewFunction(s.dockerImageList))
-	dockerLuaTable.RawSetString("image", dockerImageLuaTable)
-
-	// docker network
-	dockerNetworkLuaTable := luaState.CreateTable(0, 0)
-	dockerNetworkLuaTable.RawSetString("list", luaState.NewFunction(s.dockerNetworkList))
-	dockerLuaTable.RawSetString("network", dockerNetworkLuaTable)
-
-	// docker secret
-	dockerSecretLuaTable := luaState.CreateTable(0, 0)
-	dockerSecretLuaTable.RawSetString("list", luaState.NewFunction(s.dockerSecretList))
-	dockerLuaTable.RawSetString("secret", dockerSecretLuaTable)
-
-	// docker service
-	dockerServiceLuaTable := luaState.CreateTable(0, 0)
-	dockerServiceLuaTable.RawSetString("list", luaState.NewFunction(s.dockerServiceList))
-	dockerLuaTable.RawSetString("service", dockerServiceLuaTable)
-
-	// docker volume
-	dockerVolumeLuaTable := luaState.CreateTable(0, 0)
-	dockerVolumeLuaTable.RawSetString("list", luaState.NewFunction(s.dockerVolumeList))
-	dockerLuaTable.RawSetString("volume", dockerVolumeLuaTable)
-
-	// docker.project
-	if proj != nil {
-		dockerProjectLuaTable := luaState.CreateTable(0, 0)
-		dockerProjectLuaTable.RawSetString("id", lua.LString(proj.ID))
-		dockerProjectLuaTable.RawSetString("name", lua.LString(proj.Name))
-		dockerProjectLuaTable.RawSetString("root", lua.LString(proj.RootDir))
-		dockerLuaTable.RawSetString("project", dockerProjectLuaTable)
-	}
-
-	err := addTableToLuaState(dockerLuaTable, luaState, "docker")
-	if err != nil {
-		return err
-	}
-
-	// expose json library in the Lua sandbox
-	luajson.Expose(luaState)
-
-	return nil
-}
-
-// loadDockerscripts loads project's Dockerscripts
-// dockerscript.lua from docker.project folder as well
-// as user defined dockerscript (from devs directory)
-func (s *Sandbox) loadDockerscripts(proj *project.Project) error {
-	var err error
-
-	// return an error if no docker project was provided
-	if proj == nil {
-		return errDockerProjectNil
-	}
-
-	// chdir to project root dir
-	projectRootDir := s.dockerProject.RootDir
-	currentWorkingDirectory, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	os.Chdir(projectRootDir)
-	defer os.Chdir(currentWorkingDirectory)
-
-	// load config file
-	path, err := proj.GetConfigFilePath()
-	if err != nil {
-		return err
-	}
-	err = s.luaState.DoFile(path)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-//
-func (s *Sandbox) require(L *lua.LState) int {
-
-	// retrieve string argument
-	filename, found, err := popStringParam(L)
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-	if !found {
-		L.RaiseError("missing string argument")
-		return 0
-	}
-	// check that filepath is a relative path
-	if !filepath.IsAbs(filename) {
-		// add docker.project prefix to filename
-		filename = filepath.Join(s.dockerProject.RootDir, filename)
-	}
-
-	if filepath.Ext(filename) != ".lua" {
-		filename += ".lua"
-	}
-
-	st := lua.NewState()
-	if st == nil {
-		L.RaiseError("failed to import lua file [" + filename + "]")
-		return 0
-	}
-	err = resetLuaState(st)
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-	err = s.populateLuaState(st, s.dockerProject)
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-
-	err = st.DoFile(filename)
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-
-	L.Push(st.Env)
-	return 1
 }
