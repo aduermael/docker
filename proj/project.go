@@ -2,18 +2,12 @@ package project
 
 import (
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	"github.com/docker/distribution/uuid"
-
-	projlua "github.com/docker/docker/proj/lua"
-)
-
-const (
-	configFileName = "dockerproject.lua"
+	sandbox "github.com/docker/docker/lua-sandbox"
+	iface "github.com/docker/docker/proj/project"
+	lua "github.com/yuin/gopher-lua"
 )
 
 var (
@@ -34,36 +28,32 @@ var (
 
 // Project defines a Docker project
 type Project struct {
-	RootDir string `json:"root"`
-	Name    string `json:"name"`
-	ID      string `json:"id"`
+	RootDirVal string           `json:"root"`
+	Sandbox    *sandbox.Sandbox `json:"_"`
 }
 
-// Init initiates a new project
-func Init(dir, name string) error {
-	if isProjectRoot(dir) {
-		return fmt.Errorf("target directory already is the root of a Docker project")
-	}
-
-	project := &Project{Name: name, RootDir: dir, ID: uuid.Generate().String()}
-
-	// write config file
-	configFile := filepath.Join(dir, configFileName)
-	sample := fmt.Sprintf(projectConfigSample, project.ID, project.Name)
-	err := ioutil.WriteFile(configFile, []byte(sample), 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+//
+// iface.Project interface implementation
+//
+func (p *Project) RootDir() string {
+	return p.RootDirVal
+}
+func (p *Project) ID() string {
+	return "not implemented" // TODO: gdevillele: implement this
+}
+func (p *Project) Name() string {
+	return "not implemented" // TODO: gdevillele: implement this
+}
+func (p *Project) Commands() []iface.Command {
+	return make([]iface.Command, 0)
 }
 
 // GetConfigFilePath returns absolute path to configuration file
 func (p *Project) GetConfigFilePath() (path string, err error) {
-	absPath := filepath.Join(p.RootDir, configFileName)
+	absPath := filepath.Join(p.RootDirVal, iface.ConfigFileName)
 	_, err = os.Stat(absPath)
 	if err == nil {
-		path = configFileName
+		path = iface.ConfigFileName
 	}
 	return
 }
@@ -124,7 +114,6 @@ func (p *Project) CommandExists(cmd string) (bool, error) {
 // The configuration file can be in a parent directory, so we have to test all
 // the way up to the root directory. If no configuration file is found then
 // nil,nil is returned (no error)
-// TODO: gdevillele: disable top-level functions auto-exec during loading
 func Load(path string) (*Project, error) {
 
 	projectRootDirPath, err := findProjectRoot(path)
@@ -134,18 +123,31 @@ func Load(path string) (*Project, error) {
 	}
 
 	// config file path
-	configFilePath := filepath.Join(projectRootDirPath, configFileName)
+	configFilePath := filepath.Join(projectRootDirPath, iface.ConfigFileName)
 
-	// retrieve project id and name
-	id, name, err := projlua.LoadProjectInfo(configFilePath)
+	// create Lua sandbox and load config
+	sb, err := sandbox.CreateSandbox()
 	if err != nil {
 		return nil, err
 	}
 
+	// create project struct
 	p := &Project{
-		RootDir: projectRootDirPath,
-		Name:    name,
-		ID:      id,
+		RootDirVal: projectRootDirPath,
+		Sandbox:    sb,
+	}
+
+	err = populateLuaState(sb.GetLuaState(), p)
+	if err != nil {
+		return nil, err
+	}
+
+	found, err := sb.DoFile(configFilePath)
+	if err != nil {
+		return nil, err
+	}
+	if found == false {
+		return nil, errors.New("config file not found")
 	}
 
 	return p, nil
@@ -176,7 +178,7 @@ func IsCommandOverrideAllowed(cmd string) bool {
 func findProjectRoot(path string) (projectRootPath string, err error) {
 	path = filepath.Clean(path)
 	for {
-		b := isProjectRoot(path)
+		b := iface.IsProjectRoot(path)
 		if b {
 			projectRootPath = path
 			return
@@ -191,17 +193,112 @@ func findProjectRoot(path string) (projectRootPath string, err error) {
 	return
 }
 
-// isProjectRoot looks for a project configuration file at a given path.
-func isProjectRoot(dirPath string) (found bool) {
-	found = false
-	configFilePath := filepath.Join(dirPath, configFileName)
-	fileInfo, err := os.Stat(configFilePath)
-	if os.IsNotExist(err) {
-		return
+////////////////////////////////////////
+//
+// LUA FUNCTIONS
+//
+////////////////////////////////////////
+
+//
+func (p *Project) luaRequire(L *lua.LState) int {
+
+	// retrieve string argument
+	filename, found, err := sandbox.PopStringParam(L)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
 	}
-	if fileInfo.IsDir() {
-		return
+	if !found {
+		L.RaiseError("missing string argument")
+		return 0
 	}
-	found = true
-	return
+
+	if filepath.Ext(filename) != ".lua" {
+		filename += ".lua"
+	}
+
+	// create sandbox
+	sb, err := sandbox.CreateSandbox()
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+
+	err = populateLuaState(sb.GetLuaState(), p)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+
+	found, err = sb.DoFile(filename)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+	if found == false {
+		L.RaiseError("file not found")
+		return 0
+	}
+
+	L.Push(sb.GetLuaState().Env)
+	return 1
+}
+
+// populateLuaState adds functions to the Lua sandbox
+func populateLuaState(ls *lua.LState, p *Project) error {
+
+	// require
+	ls.Env.RawSetString("require", ls.NewFunction(p.luaRequire))
+
+	// docker
+	dockerLuaTable := ls.CreateTable(0, 0)
+	dockerLuaTable.RawSetString("cmd", ls.NewFunction(dockerCmd))
+	dockerLuaTable.RawSetString("silentCmd", ls.NewFunction(dockerSilentCmd))
+
+	// docker.container
+	dockerContainerLuaTable := ls.CreateTable(0, 0)
+	dockerContainerLuaTable.RawSetString("list", ls.NewFunction(dockerContainerList))
+	dockerLuaTable.RawSetString("container", dockerContainerLuaTable)
+
+	// docker.image
+	dockerImageLuaTable := ls.CreateTable(0, 0)
+	// dockerImageLuaTable.RawSetString("build", ls.NewFunction(s.dockerImageBuild))
+	dockerImageLuaTable.RawSetString("list", ls.NewFunction(dockerImageList))
+	dockerLuaTable.RawSetString("image", dockerImageLuaTable)
+
+	// docker network
+	dockerNetworkLuaTable := ls.CreateTable(0, 0)
+	dockerNetworkLuaTable.RawSetString("list", ls.NewFunction(dockerNetworkList))
+	dockerLuaTable.RawSetString("network", dockerNetworkLuaTable)
+
+	// docker secret
+	dockerSecretLuaTable := ls.CreateTable(0, 0)
+	dockerSecretLuaTable.RawSetString("list", ls.NewFunction(dockerSecretList))
+	dockerLuaTable.RawSetString("secret", dockerSecretLuaTable)
+
+	// docker service
+	dockerServiceLuaTable := ls.CreateTable(0, 0)
+	dockerServiceLuaTable.RawSetString("list", ls.NewFunction(dockerServiceList))
+	dockerLuaTable.RawSetString("service", dockerServiceLuaTable)
+
+	// docker volume
+	dockerVolumeLuaTable := ls.CreateTable(0, 0)
+	dockerVolumeLuaTable.RawSetString("list", ls.NewFunction(dockerVolumeList))
+	dockerLuaTable.RawSetString("volume", dockerVolumeLuaTable)
+
+	// docker.project
+	if p != nil {
+		dockerProjectLuaTable := ls.CreateTable(0, 0)
+		dockerProjectLuaTable.RawSetString("id", lua.LString(p.ID()))
+		dockerProjectLuaTable.RawSetString("name", lua.LString(p.Name()))
+		dockerProjectLuaTable.RawSetString("root", lua.LString(p.RootDir()))
+		dockerLuaTable.RawSetString("project", dockerProjectLuaTable)
+	}
+
+	err := sandbox.AddTableToLuaState(dockerLuaTable, ls, "docker")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
