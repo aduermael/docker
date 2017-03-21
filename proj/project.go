@@ -2,6 +2,8 @@ package project
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -39,13 +41,21 @@ func (p *Project) RootDir() string {
 	return p.RootDirVal
 }
 func (p *Project) ID() string {
-	return "not implemented" // TODO: gdevillele: implement this
+	id, err := p.getProjectID()
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	return id
 }
 func (p *Project) Name() string {
-	return "not implemented" // TODO: gdevillele: implement this
+	name, err := p.getProjectName()
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	return name
 }
 func (p *Project) Commands() []iface.Command {
-	return make([]iface.Command, 0)
+	return make([]iface.Command, 0) // TODO: gdevillele: implement this
 }
 
 // GetConfigFilePath returns absolute path to configuration file
@@ -279,4 +289,91 @@ func populateLuaState(ls *lua.LState, p *Project) error {
 	}
 
 	return nil
+}
+
+func (p *Project) getProjectID() (string, error) {
+	if p.Sandbox == nil {
+		return "", errors.New("sandbox is nil")
+	}
+
+	pLuaState := p.Sandbox.GetLuaState()
+	if pLuaState == nil {
+		return "", errors.New("lua state is nil")
+	}
+
+	projectTable, err := getTable(pLuaState, "project")
+	if err != nil {
+		return "", err
+	}
+	id, err := getStringFromTable(projectTable, "id")
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (p *Project) getProjectName() (string, error) {
+	if p.Sandbox == nil {
+		return "", errors.New("sandbox is nil")
+	}
+
+	pLuaState := p.Sandbox.GetLuaState()
+	if pLuaState == nil {
+		return "", errors.New("lua state is nil")
+	}
+
+	projectTable, err := getTable(pLuaState, "project")
+	if err != nil {
+		return "", err
+	}
+	name, err := getStringFromTable(projectTable, "name")
+	if err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
+func getTable(ls *lua.LState, name string) (*lua.LTable, error) {
+	if ls == nil {
+		return nil, errors.New("Lua state is nil")
+	}
+	luaValue := ls.Env.RawGetString(name)
+	if luaValue == nil {
+		return nil, errors.New("failed to get table from Lua state")
+	}
+	fmt.Println("0", luaValue)
+
+	switch luaValue.Type() {
+	case lua.LTNil:
+		fmt.Println("1")
+		return nil, nil
+	case lua.LTTable:
+		table, ok := luaValue.(*lua.LTable)
+		if ok == false {
+			return nil, errors.New("failed to get table from Lua state")
+		}
+		return table, nil
+	}
+	return nil, errors.New("failed to get table from Lua state")
+}
+
+func getStringFromTable(lt *lua.LTable, name string) (string, error) {
+	if lt == nil {
+		return "", errors.New("Lua table is nil")
+	}
+	luaValue := lt.RawGetString(name)
+	if luaValue == nil {
+		return "", errors.New("failed to get string from Lua table")
+	}
+	switch luaValue.Type() {
+	case lua.LTNil:
+		return "", errors.New("failed to get string from Lua table")
+	case lua.LTString:
+		str, ok := luaValue.(lua.LString)
+		if ok == false {
+			return "", errors.New("failed to get string from Lua table")
+		}
+		return string(str), nil
+	}
+	return "", errors.New("failed to get string from Lua table")
 }
