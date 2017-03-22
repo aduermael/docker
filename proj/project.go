@@ -2,7 +2,6 @@ package project
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -341,11 +340,9 @@ func getTable(ls *lua.LState, name string) (*lua.LTable, error) {
 	if luaValue == nil {
 		return nil, errors.New("failed to get table from Lua state")
 	}
-	fmt.Println("0", luaValue)
 
 	switch luaValue.Type() {
 	case lua.LTNil:
-		fmt.Println("1")
 		return nil, nil
 	case lua.LTTable:
 		table, ok := luaValue.(*lua.LTable)
