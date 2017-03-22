@@ -1,5 +1,9 @@
 package project
 
+import (
+	lua "github.com/yuin/gopher-lua"
+)
+
 var (
 	CurrentProject Project = nil
 )
@@ -17,6 +21,8 @@ type Project interface {
 }
 
 type Command struct {
-	Name        string
-	Description string
+	Name             string
+	ShortDescription string
+	Description      string
+	Function         *lua.LFunction
 }

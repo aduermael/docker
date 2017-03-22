@@ -25,6 +25,10 @@ var (
 		"stats",
 		"stop",
 	}
+
+	// errors
+	ErrNilSandbox  = errors.New("sandbox is nil")
+	ErrNilLuaState = errors.New("lua state is nil")
 )
 
 // Project defines a Docker project
@@ -54,7 +58,12 @@ func (p *Project) Name() string {
 	return name
 }
 func (p *Project) Commands() []iface.Command {
-	return make([]iface.Command, 0) // TODO: gdevillele: implement this
+	cmds, err := p.ListCommands()
+	if err != nil {
+		// error is not reported here TODO: gdevillele: error reporting !
+		return make([]iface.Command, 0)
+	}
+	return cmds
 }
 
 // GetConfigFilePath returns absolute path to configuration file
@@ -69,39 +78,141 @@ func (p *Project) GetConfigFilePath() (path string, err error) {
 
 // ListCommands returns commands defined for the project.
 // This function parses the main "dockerfile.lua" but also the
-func (p *Project) ListCommands() ([]ProjectCommand, error) {
-	// // list project commands
-	// dockerscript := filepath.Join(p.DockerProjectDirPath(), "dockerscript.lua")
-	// cmds, err := listCommandsForDockerscript(dockerscript)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // list user-specific project commands
-	// userDockerscriptFileName, err := getUserDockerscriptFileName()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// userDockerscript := filepath.Join(p.DockerProjectDirPath(), userDockerscriptDirName, userDockerscriptFileName)
-	// userCmds, err := listCommandsForDockerscript(userDockerscript)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // build final list (user cmds override project cmds)
-	// for _, usrCmd := range userCmds {
-	// 	// check if it is an override
-	// 	found := false
-	// 	for j, prjCmd := range cmds {
-	// 		if usrCmd.Name == prjCmd.Name {
-	// 			cmds[j].Description = usrCmd.Description // override description
-	// 			found = true
-	// 		}
-	// 	}
-	// 	if found == false {
-	// 		cmds = append(cmds, usrCmd)
-	// 	}
-	// }
-	// return cmds, nil
-	return nil, errors.New("not implemented")
+func (p *Project) ListCommands() (cmds []iface.Command, err error) {
+	cmds = make([]iface.Command, 0)
+
+	if p.Sandbox == nil {
+		return nil, ErrNilSandbox
+	}
+	ls := p.Sandbox.GetLuaState()
+	if ls == nil {
+		return nil, ErrNilLuaState
+	}
+
+	// get project table
+	projectTable, err := getTableFromState(ls, "project")
+	if err != nil {
+		return nil, err
+	}
+
+	// retrieve "project.tasks" table
+	tasksTable, err := getTableFromTable(projectTable, "tasks")
+	if err != nil {
+		return nil, err
+	}
+
+	// tasks table cannot be an array, it has to be a map
+	if tasksTable.Len() != 0 {
+		return nil, errors.New("tasks table has to be a pure map")
+	}
+
+	// loop over the keys (keys have to be strings)
+	var keys []lua.LValue = make([]lua.LValue, 0)
+	tasksTable.ForEach(func(k, v lua.LValue) {
+		keys = append(keys, k)
+	})
+
+	for _, k := range keys {
+		kStr, ok := luaValueToString(k)
+		if !ok {
+			return nil, errors.New("tasks names must be strings")
+		}
+		v := tasksTable.RawGetString(string(kStr))
+		// value can be a function
+		if luaFunction, ok := luaValueToFunction(v); ok {
+			cmds = append(cmds, iface.Command{
+				Name:             string(kStr),
+				ShortDescription: "",
+				Description:      "",
+				Function:         luaFunction,
+			})
+		} else if lt, ok := luaValueToTable(v); ok {
+			if luaTableIsArray(lt) { // value can be a table (array)
+				if lt.Len() == 1 { // one-cell array (must be function)
+					if luaFunction, ok := luaValueToFunction(lt.RawGetInt(1)); ok {
+						cmds = append(cmds, iface.Command{
+							Name:             string(kStr),
+							ShortDescription: "",
+							Description:      "",
+							Function:         luaFunction,
+						})
+					} else {
+						return nil, errors.New("tasks defined as a one-cell array can only contain a function")
+					}
+				} else if lt.Len() == 2 {
+					if luaFunction, ok := luaValueToFunction(lt.RawGetInt(1)); ok {
+						if str, ok := luaValueToString(lt.RawGetInt(2)); ok {
+							cmds = append(cmds, iface.Command{
+								Name:             string(kStr),
+								ShortDescription: string(str),
+								Description:      string(str),
+								Function:         luaFunction,
+							})
+						} else {
+							return nil, errors.New("tasks defined as 2-cell arrays must contain a function and a string")
+						}
+					} else {
+						return nil, errors.New("tasks defined as 2-cell arrays must contain a function and a string")
+					}
+				} else if lt.Len() == 3 {
+					if luaFunction, ok := luaValueToFunction(lt.RawGetInt(1)); ok {
+						if str1, ok1 := luaValueToString(lt.RawGetInt(2)); ok1 {
+							if str2, ok2 := luaValueToString(lt.RawGetInt(3)); ok2 {
+								cmds = append(cmds, iface.Command{
+									Name:             string(kStr),
+									ShortDescription: string(str1),
+									Description:      string(str2),
+									Function:         luaFunction,
+								})
+							} else {
+								return nil, errors.New("tasks defined as 3-cell arrays must contain a function and 2 strings")
+							}
+						} else {
+							return nil, errors.New("tasks defined as 3-cell arrays must contain a function and 2 strings")
+						}
+					} else {
+						return nil, errors.New("tasks defined as 3-cell arrays must contain a function and 2 strings")
+					}
+				} else {
+					return nil, errors.New("tasks defined as arrays can only have 1, 2 or 3 elements")
+				}
+			} else if luaTableIsMap(lt) { // value can be a table (map)
+				funcVal := lt.RawGetString("func")
+				shortVal := lt.RawGetString("short")
+				descVal := lt.RawGetString("desc")
+
+				if luaFunction, ok := luaValueToFunction(funcVal); ok {
+					shortStr := ""
+					descStr := ""
+					if luaStr, ok := luaValueToString(shortVal); ok {
+						shortStr = string(luaStr)
+					}
+					if luaStr, ok := luaValueToString(descVal); ok {
+						descStr = string(luaStr)
+					}
+					if shortStr == "" && descStr != "" {
+						shortStr = descStr
+					} else if shortStr != "" && descStr == "" {
+						descStr = shortStr
+					}
+					cmds = append(cmds, iface.Command{
+						Name:             string(kStr),
+						ShortDescription: string(shortStr),
+						Description:      string(descStr),
+						Function:         luaFunction,
+					})
+				} else {
+					return nil, errors.New("the \"func\" field of a task must have a function value")
+				}
+			} else {
+				return nil, errors.New("tasks can only bu pure \"map\" or pure \"array\" Lua tables")
+			}
+		} else {
+			return nil, errors.New("tasks can only be Lua functions or Lua tables")
+		}
+	}
+
+	return cmds, nil
 }
 
 // CommandExists indicates whether a command has been defined in the project
@@ -150,6 +261,7 @@ func Load(path string) (*Project, error) {
 		return nil, err
 	}
 
+	// load config file
 	found, err := sb.DoFile(configFilePath)
 	if err != nil {
 		return nil, err
@@ -292,15 +404,15 @@ func populateLuaState(ls *lua.LState, p *Project) error {
 
 func (p *Project) getProjectID() (string, error) {
 	if p.Sandbox == nil {
-		return "", errors.New("sandbox is nil")
+		return "", ErrNilSandbox
 	}
 
 	pLuaState := p.Sandbox.GetLuaState()
 	if pLuaState == nil {
-		return "", errors.New("lua state is nil")
+		return "", ErrNilLuaState
 	}
 
-	projectTable, err := getTable(pLuaState, "project")
+	projectTable, err := getTableFromState(pLuaState, "project")
 	if err != nil {
 		return "", err
 	}
@@ -313,15 +425,15 @@ func (p *Project) getProjectID() (string, error) {
 
 func (p *Project) getProjectName() (string, error) {
 	if p.Sandbox == nil {
-		return "", errors.New("sandbox is nil")
+		return "", ErrNilSandbox
 	}
 
 	pLuaState := p.Sandbox.GetLuaState()
 	if pLuaState == nil {
-		return "", errors.New("lua state is nil")
+		return "", ErrNilLuaState
 	}
 
-	projectTable, err := getTable(pLuaState, "project")
+	projectTable, err := getTableFromState(pLuaState, "project")
 	if err != nil {
 		return "", err
 	}
@@ -330,47 +442,4 @@ func (p *Project) getProjectName() (string, error) {
 		return "", err
 	}
 	return name, nil
-}
-
-func getTable(ls *lua.LState, name string) (*lua.LTable, error) {
-	if ls == nil {
-		return nil, errors.New("Lua state is nil")
-	}
-	luaValue := ls.Env.RawGetString(name)
-	if luaValue == nil {
-		return nil, errors.New("failed to get table from Lua state")
-	}
-
-	switch luaValue.Type() {
-	case lua.LTNil:
-		return nil, nil
-	case lua.LTTable:
-		table, ok := luaValue.(*lua.LTable)
-		if ok == false {
-			return nil, errors.New("failed to get table from Lua state")
-		}
-		return table, nil
-	}
-	return nil, errors.New("failed to get table from Lua state")
-}
-
-func getStringFromTable(lt *lua.LTable, name string) (string, error) {
-	if lt == nil {
-		return "", errors.New("Lua table is nil")
-	}
-	luaValue := lt.RawGetString(name)
-	if luaValue == nil {
-		return "", errors.New("failed to get string from Lua table")
-	}
-	switch luaValue.Type() {
-	case lua.LTNil:
-		return "", errors.New("failed to get string from Lua table")
-	case lua.LTString:
-		str, ok := luaValue.(lua.LString)
-		if ok == false {
-			return "", errors.New("failed to get string from Lua table")
-		}
-		return string(str), nil
-	}
-	return "", errors.New("failed to get string from Lua table")
 }
