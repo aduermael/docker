@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 
 	sandbox "github.com/docker/docker/lua-sandbox"
 	iface "github.com/docker/docker/proj/project"
@@ -212,8 +213,16 @@ func (p *Project) ListCommands() (cmds []iface.Command, err error) {
 		}
 	}
 
+	sort.Sort(ByName(cmds))
+
 	return cmds, nil
 }
+
+type ByName []iface.Command
+
+func (a ByName) Len() int           { return len(a) }
+func (a ByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 // CommandExists indicates whether a command has been defined in the project
 func (p *Project) CommandExists(cmd string) (bool, error) {
