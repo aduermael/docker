@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	sandbox "github.com/docker/docker/lua-sandbox"
 	iface "github.com/docker/docker/proj/project"
@@ -75,6 +76,100 @@ func (p *Project) GetConfigFilePath() (path string, err error) {
 		path = iface.ConfigFileName
 	}
 	return
+}
+
+// Exec ...
+func (p *Project) Exec(args []string) (found bool, err error) {
+	found = false
+	err = nil
+
+	if len(args) == 0 {
+		return found, errors.New("at least one argument required (task name)")
+	}
+
+	functionName := args[0]
+
+	cmds, err := p.ListCommands()
+	if err != nil {
+		return found, err
+	}
+	var cmd *iface.Command
+	for _, c := range cmds {
+		if c.Name == functionName {
+			found = true
+			cmd = &c
+		}
+	}
+
+	if found == false {
+		return found, nil
+	}
+
+	// chdir to project root dir
+	currentWorkingDirectory, err := os.Getwd()
+	projectRootDir := p.RootDir()
+	if err != nil {
+		return found, err
+	}
+	err = os.Chdir(projectRootDir)
+	if err != nil {
+		return found, err
+	}
+	defer os.Chdir(currentWorkingDirectory)
+
+	argsTbl := p.Sandbox.GetLuaState().CreateTable(0, 0)
+	for _, arg := range args[1:] {
+		if strings.Contains(arg, " ") {
+			arg = strings.Replace(arg, "\"", "\\\"", -1)
+			arg = "\"" + arg + "\""
+		}
+		argsTbl.Append(lua.LString(arg))
+	}
+	err = p.Sandbox.GetLuaState().CallByParam(lua.P{
+		Fn:      cmd.Function,
+		NRet:    0,
+		Protect: true,
+	}, argsTbl)
+	return found, err
+
+	// value := s.luaState.GetGlobal(functionName)
+	// if value == lua.LNil {
+	// 	return
+	// }
+
+	// fn, ok := value.(*lua.LFunction)
+	// if !ok {
+	// 	err = errors.New(functionName + " is not a function")
+	// 	return
+	// }
+
+	// // from here we consider function has been found
+	// found = true
+
+	// // chdir to project root dir
+	// projectRootDir := s.dockerProject.RootDir
+	// currentWorkingDirectory, err := os.Getwd()
+	// if err != nil {
+	// 	return
+	// }
+	// os.Chdir(projectRootDir)
+	// defer os.Chdir(currentWorkingDirectory)
+
+	// argsTbl := s.luaState.CreateTable(0, 0)
+	// for _, arg := range args[1:] {
+	// 	if strings.Contains(arg, " ") {
+	// 		arg = strings.Replace(arg, "\"", "\\\"", -1)
+	// 		arg = "\"" + arg + "\""
+	// 	}
+	// 	argsTbl.Append(lua.LString(arg))
+	// }
+
+	// err = s.luaState.CallByParam(lua.P{
+	// 	Fn:      fn,
+	// 	NRet:    0,
+	// 	Protect: true,
+	// }, argsTbl)
+	// return
 }
 
 // ListCommands returns commands defined for the project.

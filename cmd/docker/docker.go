@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/cli/debug"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/dockerversion"
-	sandbox "github.com/docker/docker/lua-sandbox"
 	"github.com/docker/docker/pkg/term"
 	projectImpl "github.com/docker/docker/proj"
 	"github.com/docker/docker/proj/project"
@@ -239,15 +238,8 @@ func main() {
 				}
 			}
 
-			// create Lua sandbox
-			sb, err := sandbox.CreateSandbox()
-			if err != nil {
-				fmt.Fprintln(stderr, err.Error())
-				os.Exit(1)
-			}
-
 			luaArgs := append([]string{cmdName}, os.Args[2:]...)
-			found, err := sb.Exec(luaArgs)
+			found, err := proj.Exec(luaArgs)
 			if found {
 				if err != nil {
 					fmt.Fprintln(stderr, err.Error())
