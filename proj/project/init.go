@@ -49,18 +49,26 @@ func FindProjectRoot(path string) (projectRootPath string, err error) {
 const projectConfigSample = `-- Docker project configuration
 
 project = {
-	"id" = "%s",
-	"name" = "%s"
+    id = "%s",
+    name = "%s",
 }
 
 project.tasks = {
-	"up" = up
+    -- using anonymous function because up() is not defined yet at this point
+    up = function() up() end,
 }
 
--- functions
+-- function to be executed before each task
+-- project.preTask = function() end
 
-function up(args)
-	print("up test")
+function up()
+    print("work in progress")
+    -- if compose file
+        -- parse compose file to list required bind mounts
+        -- run compose in a container
+    -- else 
+        -- print("can't find compose file")
+    --
 end
 `
 
