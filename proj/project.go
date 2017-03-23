@@ -46,14 +46,14 @@ func (p *Project) RootDir() string {
 	return p.RootDirVal
 }
 func (p *Project) ID() string {
-	id, err := p.getProjectID()
+	id, _, err := p.getProjectInfo()
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
 	return id
 }
 func (p *Project) Name() string {
-	name, err := p.getProjectName()
+	_, name, err := p.getProjectInfo()
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -130,6 +130,7 @@ func (p *Project) Exec(args []string) (found bool, err error) {
 		NRet:    0,
 		Protect: true,
 	}, argsTbl)
+
 	return found, err
 
 	// value := s.luaState.GetGlobal(functionName)
@@ -506,44 +507,47 @@ func populateLuaState(ls *lua.LState, p *Project) error {
 	return nil
 }
 
-func (p *Project) getProjectID() (string, error) {
+func (p *Project) getProjectInfo() (id string, name string, err error) {
+	luaFuncName := "bla"
+
 	if p.Sandbox == nil {
-		return "", ErrNilSandbox
+		return "", "", ErrNilSandbox
+	}
+	ls := p.Sandbox.GetLuaState()
+	if ls == nil {
+		return "", "", ErrNilLuaState
 	}
 
-	pLuaState := p.Sandbox.GetLuaState()
-	if pLuaState == nil {
-		return "", ErrNilLuaState
+	lv := ls.Env.RawGetString(luaFuncName)
+	fn, ok := luaValueToFunction(lv)
+	if ok == false {
+		return "", "", errors.New("lua value is not a function")
 	}
 
-	projectTable, err := getTableFromState(pLuaState, "project")
-	if err != nil {
-		return "", err
-	}
-	id, err := getStringFromTable(projectTable, "id")
-	if err != nil {
-		return "", err
-	}
-	return id, nil
-}
+	ls.CallByParam(lua.P{
+		Fn:      fn,
+		NRet:    1,
+		Protect: true,
+	})
 
-func (p *Project) getProjectName() (string, error) {
-	if p.Sandbox == nil {
-		return "", ErrNilSandbox
+	ret := ls.Get(-1)
+	ls.Pop(1)
+
+	projectTable, ok := luaValueToTable(ret)
+	if ok == false {
+		return "", "", errors.New("lua value is not a table")
 	}
 
-	pLuaState := p.Sandbox.GetLuaState()
-	if pLuaState == nil {
-		return "", ErrNilLuaState
+	idVal := projectTable.RawGetString("id")
+	nameVal := projectTable.RawGetString("name")
+	idLuaStr, ok := luaValueToString(idVal)
+	if ok == false {
+		return "", "", errors.New("project id is not a string")
+	}
+	nameLuaStr, ok := luaValueToString(nameVal)
+	if ok == false {
+		return "", "", errors.New("project name is not a string")
 	}
 
-	projectTable, err := getTableFromState(pLuaState, "project")
-	if err != nil {
-		return "", err
-	}
-	name, err := getStringFromTable(projectTable, "name")
-	if err != nil {
-		return "", err
-	}
-	return name, nil
+	return string(idLuaStr), string(nameLuaStr), nil
 }
