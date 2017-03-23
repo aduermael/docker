@@ -1,69 +1,24 @@
 -- Docker project configuration
 
 project = {
-	id = '12345',
-	name = 'youpi',
+    id = "62b97e4d-f0e2-4459-9485-93554831db31",
+    name = "docker",
 }
-
-myFunc = function()
-	-- body
-end
 
 project.tasks = {
-	a = myFunc,
-
-	b = {myFunc},
-
-	c = {myFunc, 'short'},
-
-	d = {myFunc, 'short', 'long'},
-
-	e = {
-		func = myFunc,
-		short = 'short',
-		desc = 'long',
-	},
-
-	f = {
-		func = myFunc,
-		desc = 'long',
-	},
+    -- using anonymous function because up() is not defined yet at this point
+    up = function() up() end,
 }
 
+-- function to be executed before each task
+-- project.preTask = function() end
 
-
--- called before any custom command
-project.onPreCmd = function()
-	-- body
+function up()
+    print("work in progress")
+    -- if compose file
+        -- parse compose file to list required bind mounts
+        -- run compose in a container
+    -- else 
+        -- print("can't find compose file")
+    --
 end
-
--- functions
-
-
-
--- 
-function up(args)
-	print("up test")
-	-- local docker.cmdSilent('run --rm lookForComposeFile')
-	-- local mounts = docker.cmdSilent('run --rm listRequiredMounts')
-	-- docker.cmd('run dockerCompose' .. args)
-end
-
--- returns string array
-function listComposeTasks()
-end
-
--- takes task name and arguments
-function runComposeTask(task, args)
-end
-
--- called once on project load
-function loadYAMLCommands()
-	for i,task in ipairs(listComposeTasks()) do
-		tasks[task] = function(args)
-			runComposeTask(task, args)
-		end
-	end	
-end
-
--- loadYAMLCommands()
