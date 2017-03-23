@@ -2,6 +2,7 @@ package project
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -132,45 +133,6 @@ func (p *Project) Exec(args []string) (found bool, err error) {
 	}, argsTbl)
 
 	return found, err
-
-	// value := s.luaState.GetGlobal(functionName)
-	// if value == lua.LNil {
-	// 	return
-	// }
-
-	// fn, ok := value.(*lua.LFunction)
-	// if !ok {
-	// 	err = errors.New(functionName + " is not a function")
-	// 	return
-	// }
-
-	// // from here we consider function has been found
-	// found = true
-
-	// // chdir to project root dir
-	// projectRootDir := s.dockerProject.RootDir
-	// currentWorkingDirectory, err := os.Getwd()
-	// if err != nil {
-	// 	return
-	// }
-	// os.Chdir(projectRootDir)
-	// defer os.Chdir(currentWorkingDirectory)
-
-	// argsTbl := s.luaState.CreateTable(0, 0)
-	// for _, arg := range args[1:] {
-	// 	if strings.Contains(arg, " ") {
-	// 		arg = strings.Replace(arg, "\"", "\\\"", -1)
-	// 		arg = "\"" + arg + "\""
-	// 	}
-	// 	argsTbl.Append(lua.LString(arg))
-	// }
-
-	// err = s.luaState.CallByParam(lua.P{
-	// 	Fn:      fn,
-	// 	NRet:    0,
-	// 	Protect: true,
-	// }, argsTbl)
-	// return
 }
 
 // ListCommands returns commands defined for the project.
@@ -178,16 +140,8 @@ func (p *Project) Exec(args []string) (found bool, err error) {
 func (p *Project) ListCommands() (cmds []iface.Command, err error) {
 	cmds = make([]iface.Command, 0)
 
-	if p.Sandbox == nil {
-		return nil, ErrNilSandbox
-	}
-	ls := p.Sandbox.GetLuaState()
-	if ls == nil {
-		return nil, ErrNilLuaState
-	}
-
 	// get project table
-	projectTable, err := getTableFromState(ls, "project")
+	projectTable, err := p.getProjectTable()
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +256,7 @@ func (p *Project) ListCommands() (cmds []iface.Command, err error) {
 					return nil, errors.New("the \"func\" field of a task must have a function value")
 				}
 			} else {
-				return nil, errors.New("tasks can only bu pure \"map\" or pure \"array\" Lua tables")
+				return nil, errors.New("tasks can only be pure \"map\" or pure \"array\" Lua tables")
 			}
 		} else {
 			return nil, errors.New("tasks can only be Lua functions or Lua tables")
@@ -508,34 +462,9 @@ func populateLuaState(ls *lua.LState, p *Project) error {
 }
 
 func (p *Project) getProjectInfo() (id string, name string, err error) {
-	luaFuncName := "bla"
-
-	if p.Sandbox == nil {
-		return "", "", ErrNilSandbox
-	}
-	ls := p.Sandbox.GetLuaState()
-	if ls == nil {
-		return "", "", ErrNilLuaState
-	}
-
-	lv := ls.Env.RawGetString(luaFuncName)
-	fn, ok := luaValueToFunction(lv)
-	if ok == false {
-		return "", "", errors.New("lua value is not a function")
-	}
-
-	ls.CallByParam(lua.P{
-		Fn:      fn,
-		NRet:    1,
-		Protect: true,
-	})
-
-	ret := ls.Get(-1)
-	ls.Pop(1)
-
-	projectTable, ok := luaValueToTable(ret)
-	if ok == false {
-		return "", "", errors.New("lua value is not a table")
+	projectTable, err := p.getProjectTable()
+	if err != nil {
+		return "", "", err
 	}
 
 	idVal := projectTable.RawGetString("id")
@@ -550,4 +479,41 @@ func (p *Project) getProjectInfo() (id string, name string, err error) {
 	}
 
 	return string(idLuaStr), string(nameLuaStr), nil
+}
+
+func (p *Project) getProjectTable() (*lua.LTable, error) {
+	luaFuncName := "bla"
+
+	if p.Sandbox == nil {
+		return nil, ErrNilSandbox
+	}
+	ls := p.Sandbox.GetLuaState()
+	if ls == nil {
+		return nil, ErrNilLuaState
+	}
+
+	lv := ls.Env.RawGetString(luaFuncName)
+	fn, ok := luaValueToFunction(lv)
+	if ok == false {
+		return nil, errors.New("lua value is not a function")
+	}
+
+	err := ls.CallByParam(lua.P{
+		Fn:      fn,
+		NRet:    1,
+		Protect: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ret := ls.Get(-1)
+	ls.Pop(1)
+
+	projectTable, ok := luaValueToTable(ret)
+	if ok == false {
+		return nil, errors.New("lua value is not a table")
+	}
+
+	return projectTable, nil
 }
