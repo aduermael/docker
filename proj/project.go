@@ -2,7 +2,6 @@ package project
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -30,8 +29,10 @@ var (
 	}
 
 	// errors
-	ErrNilSandbox  = errors.New("sandbox is nil")
-	ErrNilLuaState = errors.New("lua state is nil")
+	ErrNilSandbox           = errors.New("sandbox is nil")
+	ErrNilLuaState          = errors.New("lua state is nil")
+	ErrProjectValueNotFound = errors.New("project lua value not found")
+	ErrLuaValueNotATable    = errors.New("lua value is not a table")
 )
 
 // Project defines a Docker project
@@ -461,12 +462,12 @@ func populateLuaState(ls *lua.LState, p *Project) error {
 	return nil
 }
 
+// getProjectInfo returns project's id and name
 func (p *Project) getProjectInfo() (id string, name string, err error) {
 	projectTable, err := p.getProjectTable()
 	if err != nil {
 		return "", "", err
 	}
-
 	idVal := projectTable.RawGetString("id")
 	nameVal := projectTable.RawGetString("name")
 	idLuaStr, ok := luaValueToString(idVal)
@@ -477,43 +478,29 @@ func (p *Project) getProjectInfo() (id string, name string, err error) {
 	if ok == false {
 		return "", "", errors.New("project name is not a string")
 	}
-
 	return string(idLuaStr), string(nameLuaStr), nil
 }
 
+// getProjectTable retrieves the "project" table from project config
 func (p *Project) getProjectTable() (*lua.LTable, error) {
-	luaFuncName := "bla"
-
+	// get project's sandbox
 	if p.Sandbox == nil {
 		return nil, ErrNilSandbox
 	}
+	// get sandbox' lua state
 	ls := p.Sandbox.GetLuaState()
 	if ls == nil {
 		return nil, ErrNilLuaState
 	}
-
-	lv := ls.Env.RawGetString(luaFuncName)
-	fn, ok := luaValueToFunction(lv)
+	// get global value named "project"
+	lv := ls.Env.RawGetString("project")
+	if lv == nil {
+		return nil, ErrProjectValueNotFound
+	}
+	// cast Lua value into a Lua table
+	lt, ok := luaValueToTable(lv)
 	if ok == false {
-		return nil, errors.New("lua value is not a function")
+		return nil, ErrLuaValueNotATable
 	}
-
-	err := ls.CallByParam(lua.P{
-		Fn:      fn,
-		NRet:    1,
-		Protect: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	ret := ls.Get(-1)
-	ls.Pop(1)
-
-	projectTable, ok := luaValueToTable(ret)
-	if ok == false {
-		return nil, errors.New("lua value is not a table")
-	}
-
-	return projectTable, nil
+	return lt, nil
 }
