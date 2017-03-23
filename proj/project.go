@@ -100,6 +100,7 @@ func (p *Project) Exec(args []string) (found bool, err error) {
 		if c.Name == functionName {
 			found = true
 			cmd = &c
+			break
 		}
 	}
 
