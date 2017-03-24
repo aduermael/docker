@@ -15,20 +15,36 @@ project.tasks = {
     exportDE = {function(args) exportDE(args) end, 'export docker cli binaries for internal users'},
     exportEU = {function(args) exportEU(args) end, 'export docker cli binaries for external users'},
     dev = {function(args) dev(args) end, 'develop in container'},
-    tests = {tests.tests, 'runs Lua tests'},   
+    tests = {tests.tests, 'runs Lua tests'},
 }
 
 -- function to be executed before each task
 -- project.preTask = function() end
 
 function up()
-    print("work in progress...")
     -- if compose file
         -- parse compose file to list required bind mounts
         -- run compose in a container
     -- else 
         -- print("can't find compose file")
     --
+
+    -- TODO: make this more dynamic maybe
+    local composeFilePath = project.root .. '/docker-compose.yml'
+    local stackName = 'myProjectStack'
+
+    local swarmEnabled, err = isSwarmMode()
+    if err ~= nil then
+        print('ERROR:', err)
+        return
+    end
+
+    if swarmEnabled then
+        print('Swarm-mode detected, using "docker stack deploy" ...')
+        docker.cmd('stack deploy --compose-file ' .. composeFilePath .. ' ' .. stackName)
+    else
+        print("work in progress... (compose devs)")
+    end 
 end
 
 
@@ -177,5 +193,14 @@ function status()
             print(" - " .. image.name)
         end
     end
+end
+
+-- indicates whether the targeted daemon runs in swarm mode
+function isSwarmMode() -- bool, err
+    local out, err = docker.silentCmd("info --format '{{ .Swarm.LocalNodeState }}'")
+    if err ~= nil then
+        return false, err
+    end
+    return out == 'active', nil
 end
 
