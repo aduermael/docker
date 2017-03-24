@@ -51,6 +51,7 @@ const projectConfigSample = `-- Docker project configuration
 project = {
     id = "%s",
     name = "%s",
+    root = project.root,
 }
 
 project.tasks = {
