@@ -1,6 +1,6 @@
 # Dockerscript prototype
 
-This prototype is a modified Docker CLI that supports scripting and project scoping.
+This prototype is a modified Docker CLI that allows you to create Docker projects and define custom commands for them.
 
 ## How to install it?
 
@@ -20,8 +20,6 @@ ln -s ~/Desktop/docker /usr/local/bin/docker
 
 Tadam! 😀🎉
 
-You can now use `docker init` (or `docker project init`, it's actually the same thing).
-
 To uninstall, just restart Docker for Mac, the symlink will be restored.
 
 ### Docker for Windows
@@ -37,23 +35,27 @@ You do need the binaries though: [linux](https://github.com/docker/cli-init-cmd/
 
 ## How to use it?
 
-From within your Docker project, type `docker --help` or just `docker`. "From within your project" means from the root directory or from any of its children.
+Type `docker init` (or `docker project init`, it's actually the same thing) from within your project directory to make it a **Docker project**. 
 
-You'll see `status` listed under **Project Commands**. It means that `docker status` has been defined in the scope of your project.
+From within your Docker project, type `docker --help` or just `docker`. ("From within your project" means from the root directory or from any of its children)
 
-You can see how it works if you open `dockerscript.lua` under the `docker.project` directory that's been created.
+You'll see `status` and `up` listed under **Project Commands**. It means that these commands have been defined in the scope of your project.
 
-😁 - Now you can create your own Docker commands!
+You can see how it works if you open `dockerproject.lua` that's been created when calling `docker init`. 
+
+😁 - You can create your own Docker commands!
 
 These scripts are executed in a Lua sandbox. A few functions are available in there for you to build your own:
 
 - Variables about your project:
 
 	```lua
-	docker.project.id
-	docker.project.name
-	-- absolute path of the project root directory (parent directory of docker.project)
-	docker.project.root
+	-- generated randomly (by default), you can change it
+	project.id
+	-- project root directory name (by default)
+	project.name
+	-- absolute path of the project root directory (by default)
+	project.root
 	```
 
 - Docker functions:
@@ -130,15 +132,4 @@ These scripts are executed in a Lua sandbox. A few functions are available in th
 	-- assuming start() is a top level function defined in tunnel.lua
 	tunnel.start('123.888.888.888')
 	```
-	
-### Collaboration / user specific scripts
-
-`docker init` by default creates a directory called `devs` within `docker.project`. In that directory you should see a file called `USERNAME-dockerscript.lua`. You can use it to define scripts that are user specific. You can override things from the main `dockerscript.lua`. 
-
-Other developers on the same project can use their username prefixed Dockerscripts. 
-
-A common thing to do is to reference the `devs` directory in your `.gitignore` to avoid committing user specific scripts, especially if you plan to include some secret things in them...
-
-![project directory](https://github.com/docker/cli-init-cmd/raw/master/docker-init/img/project-dir.png)
-
 
