@@ -81,7 +81,7 @@ These scripts are executed in a Lua sandbox. A few functions are available in th
 	local secrets = docker.secret.list()
 
 	-- list functions accept same arguments as corresponding Docker commands:
-	containers = docker.container.list('--filter label=docker.project.id=' .. docker.project.id)
+	containers = docker.container.list('--filter label=docker.project.id=' .. project.id)
 	```
 
 - Things that you usually find in Lua environments:
@@ -123,7 +123,7 @@ These scripts are executed in a Lua sandbox. A few functions are available in th
 	-- the lua file extension can be omitted:
 	local tunnel = require("tunnel")
 	
-	-- import paths are relative to the docker.project directory
+	-- import paths are relative to the root of your Docker project
 	local tunnel = require("utils/tunnel")
 	
 	-- you can also use absolute paths
