@@ -5,6 +5,7 @@ tests = require("dockertests")
 project = {
     id = "62b97e4d-f0e2-4459-9485-93554831db31",
     name = "docker",
+    root = project.root,
 }
 
 project.tasks = {

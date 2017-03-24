@@ -322,6 +322,15 @@ func Load(path string) (*Project, error) {
 		return nil, err
 	}
 
+	// add project root dir path to the sandbox
+	ls := sb.GetLuaState()
+	if ls == nil {
+		return nil, ErrNilLuaState
+	}
+	projTable := ls.CreateTable(0, 0)
+	projTable.RawSetString("root", lua.LString(projectRootDirPath))
+	ls.Env.RawSetString("project", projTable)
+
 	// load config file
 	found, err := sb.DoFile(configFilePath)
 	if err != nil {
@@ -330,13 +339,6 @@ func Load(path string) (*Project, error) {
 	if found == false {
 		return nil, errors.New("config file not found")
 	}
-
-	// load succeeded, now we add project root dir path to the sandbox
-	projTable, err := p.getProjectTable()
-	if err != nil {
-		return nil, err
-	}
-	projTable.RawSetString("root", lua.LString(projectRootDirPath))
 
 	return p, nil
 }
