@@ -139,6 +139,6 @@ Other developers on the same project can use their username prefixed Dockerscrip
 
 A common thing to do is to reference the `devs` directory in your `.gitignore` to avoid committing user specific scripts, especially if you plan to include some secret things in them...
 
-![project directory](/img/project-dir.png)
+![project directory](https://github.com/docker/cli-init-cmd/raw/master/docker-init/img/project-dir.png)
 
 
