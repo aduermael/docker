@@ -331,6 +331,13 @@ func Load(path string) (*Project, error) {
 		return nil, errors.New("config file not found")
 	}
 
+	// load succeeded, now we add project root dir path to the sandbox
+	projTable, err := p.getProjectTable()
+	if err != nil {
+		return nil, err
+	}
+	projTable.RawSetString("root", lua.LString(projectRootDirPath))
+
 	return p, nil
 }
 
