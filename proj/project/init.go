@@ -56,12 +56,14 @@ project = {
 
 project.tasks = {
     -- using anonymous function because up() is not defined yet at this point
-    up = function() up() end,
+    up = {function() up() end, 'equivalent to docker-compose up & docker stack deploy'},
+    status = {function() status() end, 'shows project status'},
 }
 
 -- function to be executed before each task
 -- project.preTask = function() end
 
+-- 
 function up()
     print("work in progress")
     -- if compose file
@@ -70,6 +72,69 @@ function up()
     -- else 
         -- print("can't find compose file")
     --
+end
+
+-- Lists Docker entities involved in project
+function status()
+    local dockerhost = os.getEnv("DOCKER_HOST")
+    if dockerhost == "" then
+        dockerhost = "local"
+    end
+    print("Docker host: " .. dockerhost)
+
+    local success, services = pcall(docker.service.list, '--filter label=docker.project.id:' .. project.id)
+    local swarmMode = success
+
+    if swarmMode then
+        print("Services:")
+        if #services == 0 then
+            print("none")
+        else
+            for i, service in ipairs(services) do
+                print(" - " .. service.name .. " image: " .. service.image)
+            end
+        end
+    else
+        local containers = docker.container.list('-a --filter label=docker.project.id:' .. project.id)
+        print("Containers:")
+        if #containers == 0 then
+            print("none")
+        else
+            for i, container in ipairs(containers) do
+                print(" - " .. container.name .. " (" .. container.status .. ") image: " .. container.image)
+            end
+        end
+    end
+
+    local volumes = docker.volume.list('--filter label=docker.project.id:' .. project.id)
+    print("Volumes:")
+    if #volumes == 0 then
+        print("none")
+    else
+        for i, volume in ipairs(volumes) do
+            print(" - " .. volume.name .. " (" .. volume.driver .. ")")
+        end
+    end
+
+    local networks = docker.network.list('--filter label=docker.project.id:' .. project.id)
+    print("Networks:")
+    if #networks == 0 then
+        print("none")
+    else
+        for i, network in ipairs(networks) do
+            print(" - " .. network.name .. " (" .. network.driver .. ")")
+        end
+    end
+
+    local images = docker.network.list('--filter label=docker.project.id:' .. project.id)
+    print("Images (built within project):")
+    if #networks == 0 then
+        print("none")
+    else
+        for i, image in ipairs(images) do
+            print(" - " .. image.name)
+        end
+    end
 end
 `
 
