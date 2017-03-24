@@ -6,7 +6,7 @@ This prototype is a modified Docker CLI that supports scripting and project scop
 
 ### Docker for Mac
 
-Download [this binary](https://github.com/aduermael/dockerscript-prototype/raw/master/binaries/mac/docker.zip) and put it on your Desktop.
+Download [this binary](https://github.com/docker/cli-init-cmd/raw/master/binaries/mac/docker.zip) and put it on your Desktop.
 
 Then type these 2 commands in a terminal:
 
@@ -26,13 +26,13 @@ To uninstall, just restart Docker for Mac, the symlink will be restored.
 
 ### Docker for Windows
 
-No precise instructions yes. Just use [this binary](https://github.com/aduermael/dockerscript-prototype/raw/master/binaries/windows/docker.zip).
+No precise instructions yet. Just use [this binary](https://github.com/docker/cli-init-cmd/raw/master/binaries/windows/docker.zip).
 
 ### Linux
 
 🤓 - Do you really need instructions if you're on Linux?
 
-You do need the binaries though: [linux](https://github.com/aduermael/dockerscript-prototype/raw/master/binaries/linux/docker.zip) or [linux-arm](https://github.com/aduermael/dockerscript-prototype/raw/master/binaries/linux-arm/docker.zip) (only bundles the CLI, not the daemon)
+You do need the binaries though: [linux](https://github.com/docker/cli-init-cmd/raw/master/binaries/linux/docker.zip) or [linux-arm](https://github.com/docker/cli-init-cmd/raw/master/binaries/linux-arm/docker.zip) (only bundles the CLI, not the daemon)
 
 
 ## How to use it?
