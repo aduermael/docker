@@ -60,7 +60,7 @@ hidden.export = function(args, tags)
     local command = 'run ' ..
         '-e DOCKER_CROSSPLATFORMS="linux/amd64 linux/arm darwin/amd64 windows/amd64" ' ..
         '-v ' .. exportDir .. ':/output ' ..
-        '-v ' .. docker.project.root .. ':/go/src/github.com/docker/docker ' ..
+        '-v ' .. project.root .. ':/go/src/github.com/docker/docker ' ..
         '--privileged -i -t docker bash -c "' ..
         'VERSION=$(< ./VERSION) && ' ..
         tags .. 'hack/make.sh cross-client && ' ..
