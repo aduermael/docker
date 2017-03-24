@@ -12,7 +12,7 @@ project.tasks = {
     up = {function() up() end, 'equivalent to docker-compose up'},
     exportDE = {function(args) exportDE(args) end, 'export docker cli binaries for internal users'},
     exportEU = {function(args) exportEU(args) end, 'export docker cli binaries for external users'},
-
+    dev = {function(args) dev(args) end, 'develop in container'},
     tests = {tests.tests, 'runs Lua tests'},
 }
 
@@ -49,6 +49,21 @@ function build()
     docker.cmd('build -t docker .')
 end
 
+-- Mounts your source in an interactive container
+function dev(args)
+    build()
+    local argsStr = utils.join(args, " ")
+    docker.cmd('run \
+    ' .. argsStr .. ' \
+    -v ' .. os.home() .. '/.docker/.testuserid:/root/.docker/.testuserid \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v ' .. project.root .. ':/go/src/github.com/docker/docker \
+    --privileged \
+    -i \
+    -t \
+    docker bash')
+end
+
 hidden = {}
 hidden.export = function(args, tags)
     if #args ~= 1 then
@@ -73,4 +88,30 @@ hidden.export = function(args, tags)
         'pushd bundles/$VERSION/cross-client/darwin/amd64 && mv docker-$VERSION docker && zip /output/mac/docker.zip docker && popd && ' ..
         'pushd bundles/$VERSION/cross-client/windows/amd64 && mv docker-$VERSION.exe docker.exe && zip /output/windows/docker.zip docker.exe"'
     docker.cmd(command)
+end
+
+
+----------------
+-- UTILS
+----------------
+
+utils = {}
+
+-- returns a string combining strings from  string array in parameter
+-- an optional string separator can be provided.
+utils.join = function(arr, sep)
+    str = ""
+    if sep == nil then
+        sep = ""
+    end
+    if arr ~= nil then
+        for i,v in ipairs(arr) do
+            if str == "" then
+                str = v
+            else
+                str = str .. sep ..  v
+            end
+        end
+    end
+    return str
 end
