@@ -55,23 +55,31 @@ project = {
 }
 
 project.tasks = {
-    -- using anonymous function because up() is not defined yet at this point
-    up = {function() up() end, 'equivalent to docker-compose up & docker stack deploy'},
+    -- using anonymous function because compose() is not defined yet
+    compose = {function(args) compose(args) end, 'just like docker-compose'},
     status = {function() status() end, 'shows project status'},
 }
 
--- function to be executed before each task
--- project.preTask = function() end
+-- Behaves like docker-compose binary (https://docs.docker.com/compose/)
+function compose(args)
+    local jsonstr, err = docker.silentCmd('run --rm -e HOST_BIND_MOUNTS=1 ' ..
+        '-w ' .. project.root .. ' ' ..
+        'aduermael/compose ' .. utils.join(args, ' '))
+    if err ~= nil then
+        error(err)
+    end
 
--- 
-function up()
-    print("work in progress")
-    -- if compose file
-        -- parse compose file to list required bind mounts
-        -- run compose in a container
-    -- else 
-        -- print("can't find compose file")
-    --
+    local bindMounts = json.decode(jsonstr)
+    for i,bindmount in ipairs(bindMounts) do
+        bindMounts[i] = '-v ' .. bindmount .. ':'  .. bindmount .. ':ro'
+    end
+
+    docker.cmd('run --rm ' ..
+        '-w ' .. project.root .. ' ' ..
+        '-v /var/run/docker.sock:/var/run/docker.sock ' ..
+        utils.join(bindMounts, ' ') .. ' ' ..
+        'aduermael/compose -p ' .. project.name .. ' ' ..
+        utils.join(args, ' '))
 end
 
 -- Lists Docker entities involved in project
@@ -84,8 +92,7 @@ function status()
 
     local swarmMode, err = isSwarmMode()
     if err ~= nil then
-        print('error:', err)
-        return
+        error(err)
     end
 
     if swarmMode then
@@ -141,7 +148,7 @@ function status()
     end
 end
 
--- indicates whether the targeted daemon runs in swarm mode
+-- returns true if daemon runs in swarm mode
 function isSwarmMode() -- bool, err
     local out, err = docker.silentCmd("info --format '{{ .Swarm.LocalNodeState }}'")
     if err ~= nil then
