@@ -119,12 +119,7 @@ func eventStartProcess(track *analytics.Track) {
 	// start new docker process to upload event
 	cmd := exec.Command(os.Args[0], string(jsonBytes))
 	cmd.Env = append(cmd.Env, "DOCKERSCRIPT_ANALYTICS=1")
-	// cmd.Start()
-	byt, err := cmd.CombinedOutput()
-	// if err != nil {
-	fmt.Println("eventStartProcess ERROR:", err)
-	// }
-	fmt.Println("eventStartProcess RETURN:", string(byt))
+	cmd.Start()
 }
 
 func getOSName() string {
