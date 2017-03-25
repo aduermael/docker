@@ -10,7 +10,7 @@ project = {
 
 project.tasks = {
     -- using anonymous function because up() is not defined yet at this point
-    up = {function() up() end, 'equivalent to docker-compose up'},
+    up = {function(args) up(args) end, 'equivalent to docker-compose up'},
     status = {function() status() end, 'shows project status'},
     exportDE = {function(args) exportDE(args) end, 'export docker cli binaries for internal users'},
     exportEU = {function(args) exportEU(args) end, 'export docker cli binaries for external users'},
@@ -21,7 +21,8 @@ project.tasks = {
 -- function to be executed before each task
 -- project.preTask = function() end
 
-function up()
+function up(args)
+
     -- if compose file
         -- parse compose file to list required bind mounts
         -- run compose in a container
