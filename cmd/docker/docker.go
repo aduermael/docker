@@ -64,9 +64,7 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 			}
 			return isSupported(cmd, dockerCli)
 		},
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			analytics.Close()
-		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 	}
 	cli.SetupRootCommand(cmd)
 
@@ -245,7 +243,6 @@ func main() {
 					os.Exit(1)
 				}
 				analytics.Event("command", map[string]interface{}{"name": "docker " + cmdName, "lua": true})
-				analytics.Close()
 				return
 			}
 			// NOTE: if Lua parsing in proj.CommandExists is working as expected

@@ -20,7 +20,6 @@ import (
 )
 
 var (
-	client         *analytics.Client
 	cliTestVersion = "0.0.5"
 	userid         = ""
 	inproj         = false
@@ -28,6 +27,10 @@ var (
 )
 
 func init() {
+	// disable init in detached process
+	if os.Getenv("DOCKERSCRIPT_ANALYTICS") == "1" {
+		return
+	}
 
 	configDir := config.Dir()
 	// just making sure it exists...
@@ -44,7 +47,6 @@ func init() {
 			userid = fmt.Sprintf("%x", sha256.Sum256(data))
 			ioutil.WriteFile(idPath, []byte(userid), 0644)
 		}
-
 	} else {
 		idbytes, err := ioutil.ReadFile(idPath)
 		if err == nil {
@@ -60,17 +62,6 @@ func init() {
 			inproj = true
 		}
 	}
-
-	// wd, err := os.Getwd()
-	// if err == nil {
-	// 	var proj *project.Project
-	// 	proj, err = project.Load(wd)
-	// 	if err == nil {
-	// 		if proj != nil {
-	// 			inproj = true
-	// 		}
-	// 	}
-	// }
 
 	var usernamesArr = make([]string, 0)
 
@@ -97,20 +88,6 @@ func init() {
 
 	// generate usernames string
 	usernames = strings.Join(usernamesArr, ",")
-
-	client = analytics.New("EMkyNVNnr7Ian1RrSOW8b4JdAt4GQ7lI")
-	// client.Verbose = true
-	client.Size = 1
-
-	// identify users that are logged in
-	if usernames != "" && userid != "" {
-		client.Identify(&analytics.Identify{
-			UserId: userid,
-			Traits: map[string]interface{}{
-				"login": usernames,
-			},
-		})
-	}
 }
 
 // Event sends an event to the analytics platform
@@ -136,22 +113,18 @@ func Event(name string, properties map[string]interface{}) {
 	eventStartProcess(t)
 }
 
-// Close closes the analytics client after all the requests are finished
-func Close() {
-	client.Close()
-}
-
 func eventStartProcess(track *analytics.Track) {
 	// json marshal track struct
 	jsonBytes, _ := json.Marshal(track) // ignore error
 	// start new docker process to upload event
 	cmd := exec.Command(os.Args[0], string(jsonBytes))
 	cmd.Env = append(cmd.Env, "DOCKERSCRIPT_ANALYTICS=1")
-	cmd.Start()
-}
-
-func eventDirect(track *analytics.Track) error {
-	return client.Track(track)
+	// cmd.Start()
+	byt, err := cmd.CombinedOutput()
+	// if err != nil {
+	fmt.Println("eventStartProcess ERROR:", err)
+	// }
+	fmt.Println("eventStartProcess RETURN:", string(byt))
 }
 
 func getOSName() string {
