@@ -82,10 +82,14 @@ function status()
     end
     print("Docker host: " .. dockerhost)
 
-    local success, services = pcall(docker.service.list, '--filter label=docker.project.id:' .. project.id)
-    local swarmMode = success
+    local swarmMode, err = isSwarmMode()
+    if err ~= nil then
+        print('error:', err)
+        return
+    end
 
     if swarmMode then
+        local services = docker.service.list('--filter label=docker.project.id:' .. project.id)
         print("Services:")
         if #services == 0 then
             print("none")
