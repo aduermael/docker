@@ -174,8 +174,6 @@ func noArgs(cmd *cobra.Command, args []string) error {
 
 func main() {
 
-	checkUDID()
-
 	// check if it is an analytics event process
 	if os.Getenv("DOCKERSCRIPT_ANALYTICS") == "1" {
 		analytics.ReportAnalyticsEvent()
