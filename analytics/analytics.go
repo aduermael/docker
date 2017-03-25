@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	cliTestVersion = "0.0.5"
+	cliTestVersion = "0.0.6"
 	userid         = ""
 	inproj         = false
 	usernames      = ""
