@@ -152,10 +152,11 @@ type UDFunction struct {
 func GetProjectDefinedFunctions() []UDFunction {
 	result := make([]UDFunction, 0)
 
-	proj := project.CurrentProject
-	if proj == nil {
+	if project.CurrentProject == nil {
 		return result
 	}
+
+	proj := project.CurrentProject
 
 	projectCmds := proj.Commands()
 	for _, projectCmd := range projectCmds {

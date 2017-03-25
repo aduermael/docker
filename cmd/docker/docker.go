@@ -196,10 +196,10 @@ func main() {
 		return
 	}
 
-	// store global reference to current project
-	project.CurrentProject = proj
-
 	if proj != nil {
+		// store global reference to current project
+		project.CurrentProject = proj
+
 		err := project.SaveInRecentProjects(proj)
 		if err != nil {
 			logrus.Fatalln(err)
