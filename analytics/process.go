@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -11,7 +12,13 @@ import (
 // ReportAnalyticsEvent is the main function when docker is executed only
 // for reporting a tracking event
 func ReportAnalyticsEvent() {
+	// create analytics client
+	var client *analytics.Client = analytics.New("EMkyNVNnr7Ian1RrSOW8b4JdAt4GQ7lI")
+
+	// defer time.Sleep(10 * time.Second)
+	defer client.Close()
 	defer time.Sleep(60 * time.Second)
+
 	// retrieve arguments
 	args := os.Args
 	if len(args) == 2 {
@@ -21,8 +28,20 @@ func ReportAnalyticsEvent() {
 		if err != nil {
 			return
 		}
-		err = eventDirect(&event)
+
+		// client.Verbose = true
+		client.Size = 1
+		// identify users that are logged in
+		client.Identify(&analytics.Identify{
+			UserId: event.UserId,
+			Traits: map[string]interface{}{
+				"login": event.Properties["username"],
+			},
+		})
+
+		err = client.Track(&event)
 		if err != nil {
+			fmt.Println("process track error:", err.Error())
 			return
 		}
 	} else {
