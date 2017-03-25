@@ -136,6 +136,15 @@ function status()
         end
     end
 end
+
+-- indicates whether the targeted daemon runs in swarm mode
+function isSwarmMode() -- bool, err
+    local out, err = docker.silentCmd("info --format '{{ .Swarm.LocalNodeState }}'")
+    if err ~= nil then
+        return false, err
+    end
+    return out == 'active', nil
+end
 `
 
 // isProjectRoot looks for a project configuration file at a given path.
