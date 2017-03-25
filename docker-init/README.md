@@ -39,7 +39,7 @@ Type `docker init` (or `docker project init`, it's actually the same thing) from
 
 From within your Docker project, type `docker --help` or just `docker`. ("From within your project" means from the root directory or from any of its children)
 
-You'll see `status` and `up` listed under **Project Commands**. It means that these commands have been defined in the scope of your project.
+You'll see `compose` and `status` listed under **Project Commands**. It means that these commands have been defined in the scope of your project.
 
 You can see how it works if you open `dockerproject.lua` that's been created when calling `docker init`. 
 
