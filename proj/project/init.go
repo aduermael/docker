@@ -149,6 +149,31 @@ function isSwarmMode() -- bool, err
     end
     return out == 'active', nil
 end
+
+----------------
+-- UTILS
+----------------
+
+utils = {}
+
+-- returns a string combining strings from  string array in parameter
+-- an optional string separator can be provided.
+utils.join = function(arr, sep)
+    str = ""
+    if sep == nil then
+        sep = ""
+    end
+    if arr ~= nil then
+        for i,v in ipairs(arr) do
+            if str == "" then
+                str = v
+            else
+                str = str .. sep ..  v
+            end
+        end
+    end
+    return str
+end
 `
 
 // isProjectRoot looks for a project configuration file at a given path.
