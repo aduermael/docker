@@ -74,7 +74,7 @@ function compose(args)
         bindMounts[i] = '-v ' .. bindmount .. ':'  .. bindmount .. ':ro'
     end
 
-    docker.cmd('run --rm ' ..
+    pcall(docker.cmd, 'run --rm ' ..
         '-w ' .. project.root .. ' ' ..
         '-v /var/run/docker.sock:/var/run/docker.sock ' ..
         utils.join(bindMounts, ' ') .. ' ' ..

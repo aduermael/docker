@@ -9,55 +9,34 @@ project = {
 }
 
 project.tasks = {
-    -- using anonymous function because up() is not defined yet at this point
-    up = {function(args) up(args) end, 'equivalent to docker-compose up'},
-    status = {function() status() end, 'shows project status'},
-    exportDE = {function(args) exportDE(args) end, 'export docker cli binaries for internal users'},
-    exportEU = {function(args) exportEU(args) end, 'export docker cli binaries for external users'},
+    -- using anonymous functions when target function is not yet defined
+    binaries = {function() binaries() end, 'export docker cli binaries'},
+    compose = {function(args) compose(args) end, 'equivalent to docker-compose'},
     dev = {function(args) dev(args) end, 'develop in container'},
+    status = {function() status() end, 'shows project status'},
     tests = {tests.tests, 'runs Lua tests'},
 }
 
--- function to be executed before each task
--- project.preTask = function() end
-
-function up(args)
-
-    -- if compose file
-        -- parse compose file to list required bind mounts
-        -- run compose in a container
-    -- else 
-        -- print("can't find compose file")
-    --
-
-    -- TODO: make this more dynamic maybe
-    local composeFilePath = project.root .. '/docker-compose.yml'
-    local stackName = 'myProjectStack'
-
-    local swarmEnabled, err = isSwarmMode()
+-- Behaves like docker-compose binary (https://docs.docker.com/compose/)
+function compose(args)
+    local jsonstr, err = docker.silentCmd('run --rm -e HOST_BIND_MOUNTS=1 ' ..
+        '-w ' .. project.root .. ' ' ..
+        'aduermael/compose ' .. utils.join(args, ' '))
     if err ~= nil then
-        print('ERROR:', err)
-        return
+        error(err)
     end
 
-    if swarmEnabled then
-        print('Swarm-mode detected, using "docker stack deploy" ...')
-        docker.cmd('stack deploy --compose-file ' .. composeFilePath .. ' ' .. stackName)
-    else
-        print("work in progress... (compose devs)")
-    end 
-end
+    local bindMounts = json.decode(jsonstr)
+    for i,bindmount in ipairs(bindMounts) do
+        bindMounts[i] = '-v ' .. bindmount .. ':'  .. bindmount .. ':ro'
+    end
 
-
-
--- Exports client binaries for all platforms (For Docker Employees)
-function exportDE(args)
-    hidden.export(args, '')
-end
-
--- Exports client binaries for all platforms (For External Users)
-function exportEU(args)
-    hidden.export(args, 'DOCKER_BUILDTAGS=\\"$DOCKER_BUILDTAGS -tags IS_EXTERNAL_USER\\" ')
+    pcall(docker.cmd, 'run --rm ' ..
+        '-w ' .. project.root .. ' ' ..
+        '-v /var/run/docker.sock:/var/run/docker.sock ' ..
+        utils.join(bindMounts, ' ') .. ' ' ..
+        'aduermael/compose -p ' .. project.name .. ' ' ..
+        utils.join(args, ' '))
 end
 
 -- Creates a Docker image with full dev environment
@@ -81,13 +60,8 @@ function dev(args)
     docker bash')
 end
 
-hidden = {}
-hidden.export = function(args, tags)
-    if #args ~= 1 then
-        print("absolute path to destination directory expected")
-        return
-    end
-    local exportDir = args[1]
+function binaries()
+    local exportDir = project.root .. '/docker-init/binaries'
     build()
     local command = 'run ' ..
         '-e DOCKER_CROSSPLATFORMS="linux/amd64 linux/arm darwin/amd64 windows/amd64" ' ..
@@ -95,7 +69,7 @@ hidden.export = function(args, tags)
         '-v ' .. project.root .. ':/go/src/github.com/docker/docker ' ..
         '--privileged -i -t docker bash -c "' ..
         'VERSION=$(< ./VERSION) && ' ..
-        tags .. 'hack/make.sh cross-client && ' ..
+        'hack/make.sh cross-client && ' ..
         'mkdir -p /output/linux && ' ..
         'mkdir -p /output/linux-arm && ' ..
         'mkdir -p /output/mac && ' ..
