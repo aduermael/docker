@@ -15,7 +15,7 @@ func ReportAnalyticsEvent() {
 	// create analytics client
 	var client *analytics.Client = analytics.New("EMkyNVNnr7Ian1RrSOW8b4JdAt4GQ7lI")
 
-	// defer time.Sleep(10 * time.Second)
+	defer time.Sleep(10 * time.Second)
 	defer client.Close()
 	defer time.Sleep(60 * time.Second)
 
