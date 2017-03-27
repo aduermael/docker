@@ -14,7 +14,7 @@ project.tasks = {
     compose = {function(args) compose(args) end, 'equivalent to docker-compose'},
     dev = {function(args) dev(args) end, 'develop in container'},
     status = {function() status() end, 'shows project status'},
-    tests = {tests.tests, 'runs Lua tests'},
+    test = {function() tests:run() end, 'runs Lua tests'},
 }
 
 -- Behaves like docker-compose binary (https://docs.docker.com/compose/)

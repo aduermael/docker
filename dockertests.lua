@@ -2,21 +2,14 @@
 -- images test
 --
 
+Tests = { id = "1" }
 
-function tests()
-	print("running tests...")
-	test1()
-	print("done running tests.")
+function Tests:run()
+  print("RUNNING tests...")
+  print(self.id)
 end
 
+local tests = Tests
+tests.id = "2"
 
-function assert(condition, errorMessage)
-	if condition == false then
-		error(errorMessage)
-	end
-end
-
-
-function test1()
-
-end
+return tests

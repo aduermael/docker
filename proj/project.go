@@ -404,31 +404,28 @@ func (p *Project) luaRequire(L *lua.LState) int {
 		filename += ".lua"
 	}
 
-	// create sandbox
-	sb, err := sandbox.CreateSandbox()
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-
-	err = populateLuaState(sb.GetLuaState(), p)
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-
-	found, err = sb.DoFile(filename)
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
-	}
-	if found == false {
+	_, err = os.Stat(filename)
+	if os.IsNotExist(err) {
 		L.RaiseError("file not found")
 		return 0
 	}
 
-	L.Push(sb.GetLuaState().Env)
-	return 1
+	fn, err := p.Sandbox.GetLuaState().LoadFile(filename)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+	err = p.Sandbox.GetLuaState().CallByParam(lua.P{
+		Fn:      fn,
+		NRet:    lua.MultRet,
+		Protect: true,
+	})
+
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+	return p.Sandbox.GetLuaState().GetTop()
 }
 
 // populateLuaState adds functions to the Lua sandbox
