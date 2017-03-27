@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
+
+	"github.com/docker/docker/proj/project"
 )
 
 type attachOptions struct {
@@ -46,6 +48,24 @@ func NewAttachCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runAttach(dockerCli *command.DockerCli, opts *attachOptions) error {
 	ctx := context.Background()
 	client := dockerCli.Client()
+
+	// DOCKER PROJECT HACK
+	if project.IsInProject() {
+		if project.CanBeContainerID(opts.container) {
+			// container string can be either a container id or a container name.
+			// first we try as if it was a name (adding name-prefix)
+			originalContainerString := opts.container
+			opts.container = project.ScopedToGlobalContainerName(opts.container)
+			_, err := client.ContainerInspect(ctx, opts.container)
+			if err != nil {
+				opts.container = originalContainerString
+			}
+		} else {
+			// container string can only be a container name,
+			// so we add the container name prefix (project id)
+			opts.container = project.ScopedToGlobalContainerName(opts.container)
+		}
+	}
 
 	c, err := client.ContainerInspect(ctx, opts.container)
 	if err != nil {
