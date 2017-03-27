@@ -62,7 +62,7 @@ func (p *Project) Name() string {
 	return name
 }
 func (p *Project) Commands() []iface.Command {
-	cmds, err := p.ListCommands()
+	cmds, err := p.listCommands()
 	if err != nil {
 		// error is not reported here TODO: gdevillele: error reporting !
 		return make([]iface.Command, 0)
@@ -80,6 +80,18 @@ func (p *Project) GetConfigFilePath() (path string, err error) {
 	return
 }
 
+func (p *Project) chRootDir() (previousWorkDir string, err error) {
+	previousWorkDir, err = os.Getwd()
+	if err != nil {
+		return
+	}
+	err = os.Chdir(p.RootDir())
+	if err != nil {
+		return
+	}
+	return
+}
+
 // Exec ...
 func (p *Project) Exec(args []string) (found bool, err error) {
 	found = false
@@ -91,7 +103,14 @@ func (p *Project) Exec(args []string) (found bool, err error) {
 
 	functionName := args[0]
 
-	cmds, err := p.ListCommands()
+	// go to project root dir
+	previousWorkDir, err := p.chRootDir()
+	if err != nil {
+		return
+	}
+	defer os.Chdir(previousWorkDir)
+
+	cmds, err := p.listCommands()
 	if err != nil {
 		return found, err
 	}
@@ -107,18 +126,6 @@ func (p *Project) Exec(args []string) (found bool, err error) {
 	if found == false {
 		return found, nil
 	}
-
-	// chdir to project root dir
-	currentWorkingDirectory, err := os.Getwd()
-	projectRootDir := p.RootDir()
-	if err != nil {
-		return found, err
-	}
-	err = os.Chdir(projectRootDir)
-	if err != nil {
-		return found, err
-	}
-	defer os.Chdir(currentWorkingDirectory)
 
 	argsTbl := p.Sandbox.GetLuaState().CreateTable(0, 0)
 	for _, arg := range args[1:] {
@@ -137,9 +144,9 @@ func (p *Project) Exec(args []string) (found bool, err error) {
 	return found, err
 }
 
-// ListCommands returns commands defined for the project.
+// listCommands returns commands defined for the project.
 // This function parses the main "dockerfile.lua" but also the
-func (p *Project) ListCommands() (cmds []iface.Command, err error) {
+func (p *Project) listCommands() (cmds []iface.Command, err error) {
 	cmds = make([]iface.Command, 0)
 
 	// get project table
@@ -278,7 +285,7 @@ func (a ByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 // CommandExists indicates whether a command has been defined in the project
 func (p *Project) CommandExists(cmd string) (bool, error) {
-	commands, err := p.ListCommands()
+	commands, err := p.listCommands()
 	if err != nil {
 		return false, err
 	}
@@ -296,19 +303,16 @@ func (p *Project) CommandExists(cmd string) (bool, error) {
 // nil,nil is returned (no error)
 func Load(path string) (*Project, error) {
 
-	projectRootDirPath, err := iface.FindProjectRoot(path)
-	if err != nil {
-		// TODO: gdevillele: handle actual errors, for now we suppose no project is found
-		return nil, nil
-	}
-
-	// config file path
-	configFilePath := filepath.Join(projectRootDirPath, iface.ConfigFileName)
-
 	// create Lua sandbox and load config
 	sb, err := sandbox.CreateSandbox()
 	if err != nil {
 		return nil, err
+	}
+
+	projectRootDirPath, err := iface.FindProjectRoot(path)
+	if err != nil {
+		// TODO: gdevillele: handle actual errors, for now we suppose no project is found
+		return nil, nil
 	}
 
 	// create project struct
@@ -316,6 +320,13 @@ func Load(path string) (*Project, error) {
 		RootDirVal: projectRootDirPath,
 		Sandbox:    sb,
 	}
+
+	// go to project root dir
+	previousWorkDir, err := p.chRootDir()
+	if err != nil {
+		return nil, err
+	}
+	defer os.Chdir(previousWorkDir)
 
 	err = populateLuaState(sb.GetLuaState(), p)
 	if err != nil {
@@ -330,6 +341,9 @@ func Load(path string) (*Project, error) {
 	projTable := ls.CreateTable(0, 0)
 	projTable.RawSetString("root", lua.LString(projectRootDirPath))
 	ls.Env.RawSetString("project", projTable)
+
+	// config file path
+	configFilePath := filepath.Join(projectRootDirPath, iface.ConfigFileName)
 
 	// load config file
 	found, err := sb.DoFile(configFilePath)
