@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/pkg/term"
@@ -159,7 +160,12 @@ func GetProjectDefinedFunctions() []UDFunction {
 
 	proj := project.CurrentProject
 
-	projectCmds := proj.Commands()
+	projectCmds, err := proj.Commands()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+
 	for _, projectCmd := range projectCmds {
 		f := UDFunction{
 			Name:        projectCmd.Name,
