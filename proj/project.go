@@ -61,13 +61,12 @@ func (p *Project) Name() string {
 	}
 	return name
 }
-func (p *Project) Commands() []iface.Command {
+func (p *Project) Commands() ([]iface.Command, error) {
 	cmds, err := p.listCommands()
 	if err != nil {
-		// error is not reported here TODO: gdevillele: error reporting !
-		return make([]iface.Command, 0)
+		return nil, err
 	}
-	return cmds
+	return cmds, nil
 }
 
 // GetConfigFilePath returns absolute path to configuration file
@@ -148,6 +147,7 @@ func (p *Project) Exec(args []string) (found bool, err error) {
 // This function parses the main "dockerfile.lua" but also the
 func (p *Project) listCommands() (cmds []iface.Command, err error) {
 	cmds = make([]iface.Command, 0)
+	errorPrefix := "error in Lua tasks definition: "
 
 	// get project table
 	projectTable, err := p.getProjectTable()
@@ -163,7 +163,7 @@ func (p *Project) listCommands() (cmds []iface.Command, err error) {
 
 	// tasks table cannot be an array, it has to be a map
 	if tasksTable.Len() != 0 {
-		return nil, errors.New("tasks table has to be a pure map")
+		return nil, errors.New(errorPrefix + "can't accept arrays, only pure maps")
 	}
 
 	// loop over the keys (keys have to be strings)
@@ -175,7 +175,7 @@ func (p *Project) listCommands() (cmds []iface.Command, err error) {
 	for _, k := range keys {
 		kStr, ok := luaValueToString(k)
 		if !ok {
-			return nil, errors.New("tasks names must be strings")
+			return nil, errors.New(errorPrefix + "task names must be strings")
 		}
 		v := tasksTable.RawGetString(string(kStr))
 		// value can be a function
@@ -197,7 +197,7 @@ func (p *Project) listCommands() (cmds []iface.Command, err error) {
 							Function:         luaFunction,
 						})
 					} else {
-						return nil, errors.New("tasks defined as a one-cell array can only contain a function")
+						return nil, errors.New(errorPrefix + "one-cell array must contain a function (" + string(kStr) + ")")
 					}
 				} else if lt.Len() == 2 {
 					if luaFunction, ok := luaValueToFunction(lt.RawGetInt(1)); ok {
@@ -209,10 +209,10 @@ func (p *Project) listCommands() (cmds []iface.Command, err error) {
 								Function:         luaFunction,
 							})
 						} else {
-							return nil, errors.New("tasks defined as 2-cell arrays must contain a function and a string")
+							return nil, errors.New(errorPrefix + "2-cell array must contain a function and a string (" + string(kStr) + ")")
 						}
 					} else {
-						return nil, errors.New("tasks defined as 2-cell arrays must contain a function and a string")
+						return nil, errors.New(errorPrefix + "2-cell array must contain a function and a string (" + string(kStr) + ")")
 					}
 				} else if lt.Len() == 3 {
 					if luaFunction, ok := luaValueToFunction(lt.RawGetInt(1)); ok {
@@ -225,16 +225,16 @@ func (p *Project) listCommands() (cmds []iface.Command, err error) {
 									Function:         luaFunction,
 								})
 							} else {
-								return nil, errors.New("tasks defined as 3-cell arrays must contain a function and 2 strings")
+								return nil, errors.New(errorPrefix + "3-cell array must contain a function and 2 strings (" + string(kStr) + ")")
 							}
 						} else {
-							return nil, errors.New("tasks defined as 3-cell arrays must contain a function and 2 strings")
+							return nil, errors.New(errorPrefix + "3-cell array must contain a function and 2 strings (" + string(kStr) + ")")
 						}
 					} else {
-						return nil, errors.New("tasks defined as 3-cell arrays must contain a function and 2 strings")
+						return nil, errors.New(errorPrefix + "3-cell array must contain a function and 2 strings (" + string(kStr) + ")")
 					}
 				} else {
-					return nil, errors.New("tasks defined as arrays can only have 1, 2 or 3 elements")
+					return nil, errors.New(errorPrefix + "tasks defined as arrays can only have 1, 2 or 3 elements (" + string(kStr) + ")")
 				}
 			} else if luaTableIsMap(lt) { // value can be a table (map)
 				funcVal := lt.RawGetString("func")
@@ -262,13 +262,13 @@ func (p *Project) listCommands() (cmds []iface.Command, err error) {
 						Function:         luaFunction,
 					})
 				} else {
-					return nil, errors.New("the \"func\" field of a task must have a function value")
+					return nil, errors.New(errorPrefix + "\"func\" field of a task must be a function (" + string(kStr) + ")")
 				}
 			} else {
-				return nil, errors.New("tasks can only be pure \"map\" or pure \"array\" Lua tables")
+				return nil, errors.New(errorPrefix + "definition accepts a pure \"map\" OR a pure \"array\" (" + string(kStr) + ")")
 			}
 		} else {
-			return nil, errors.New("tasks can only be Lua functions or Lua tables")
+			return nil, errors.New(errorPrefix + "definition can only be a Lua function or a Lua table (" + string(kStr) + ")")
 		}
 	}
 
@@ -303,16 +303,16 @@ func (p *Project) CommandExists(cmd string) (bool, error) {
 // nil,nil is returned (no error)
 func Load(path string) (*Project, error) {
 
-	// create Lua sandbox and load config
-	sb, err := sandbox.CreateSandbox()
-	if err != nil {
-		return nil, err
-	}
-
 	projectRootDirPath, err := iface.FindProjectRoot(path)
 	if err != nil {
 		// TODO: gdevillele: handle actual errors, for now we suppose no project is found
 		return nil, nil
+	}
+
+	// create Lua sandbox and load config
+	sb, err := sandbox.CreateSandbox()
+	if err != nil {
+		return nil, err
 	}
 
 	// create project struct
@@ -328,30 +328,34 @@ func Load(path string) (*Project, error) {
 	}
 	defer os.Chdir(previousWorkDir)
 
-	err = populateLuaState(sb.GetLuaState(), p)
-	if err != nil {
-		return nil, err
-	}
-
 	// add project root dir path to the sandbox
 	ls := sb.GetLuaState()
 	if ls == nil {
 		return nil, ErrNilLuaState
 	}
+
+	err = populateLuaState(ls, p)
+	if err != nil {
+		return nil, err
+	}
+
 	projTable := ls.CreateTable(0, 0)
 	projTable.RawSetString("root", lua.LString(projectRootDirPath))
 	ls.Env.RawSetString("project", projTable)
 
-	// config file path
-	configFilePath := filepath.Join(projectRootDirPath, iface.ConfigFileName)
-
 	// load config file
-	found, err := sb.DoFile(configFilePath)
+	found, err := sb.DoFile(iface.ConfigFileName)
 	if err != nil {
 		return nil, err
 	}
 	if found == false {
-		return nil, errors.New("config file not found")
+		return nil, errors.New("can't find " + iface.ConfigFileName)
+	}
+
+	// make sure commands are correctly implemented
+	_, err = p.listCommands()
+	if err != nil {
+		return nil, err
 	}
 
 	return p, nil

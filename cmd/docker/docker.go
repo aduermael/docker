@@ -191,7 +191,7 @@ func main() {
 	proj, err := projectImpl.LoadForWd()
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
-		return
+		os.Exit(1)
 	}
 
 	if proj != nil {

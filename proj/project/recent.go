@@ -32,8 +32,8 @@ func (rp *recentProject) ID() string {
 func (rp *recentProject) Name() string {
 	return rp.NameVal
 }
-func (rp *recentProject) Commands() []Command {
-	return make([]Command, 0)
+func (rp *recentProject) Commands() ([]Command, error) {
+	return make([]Command, 0), nil
 }
 
 type recentProjects []*recentProject
