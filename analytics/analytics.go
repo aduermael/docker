@@ -21,6 +21,7 @@ import (
 
 var (
 	cliTestVersion = "0.0.6"
+	patch          = 1
 	userid         = ""
 	inproj         = false
 	usernames      = ""
@@ -96,12 +97,12 @@ func Event(name string, properties map[string]interface{}) {
 		Event:  name,
 		UserId: userid,
 		Properties: map[string]interface{}{
-			"project":    inproj,
-			"username":   usernames,
-			"version":    cliTestVersion,
-			"localuser":  getSystemUsername(),
-			"isemployee": getIsDockerEmployee(),
-			"os":         getOSName(),
+			"project":   inproj,
+			"username":  usernames,
+			"version":   cliTestVersion,
+			"patch":     patch,
+			"localuser": getSystemUsername(),
+			"os":        getOSName(),
 		},
 	}
 	for k, v := range properties {
@@ -124,10 +125,6 @@ func eventStartProcess(track *analytics.Track) {
 
 func getOSName() string {
 	return runtime.GOOS
-}
-
-func getIsDockerEmployee() bool {
-	return isDockerEmployee
 }
 
 func getSystemUsername() string {
