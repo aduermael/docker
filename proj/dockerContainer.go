@@ -2,17 +2,105 @@ package project
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cli/command/inspect"
 	sandbox "github.com/docker/docker/lua-sandbox"
 	"github.com/docker/docker/opts"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/spf13/pflag"
 	lua "github.com/yuin/gopher-lua"
 )
+
+// dockerContainerInspect inspects a container identified by its name or id
+// (or portion of it), it returns a Lua table full of information
+func dockerContainerInspect(L *lua.LState) int {
+	// TODO: don't consider flags
+	// and accept several strings instead
+	// Lua: docker.container.inspect(containerID1, containerID2, ...)
+
+	argsStr, found, err := sandbox.PopStringParam(L)
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+	// no args: ok
+
+	args := make([]string, 0)
+
+	if found {
+		args, err = shellwords.Parse(argsStr)
+		if err != nil {
+			L.RaiseError(err.Error())
+			return 0
+		}
+	}
+
+	var opts containerInspectOptions
+
+	flags := pflag.NewFlagSet("dockerContainerInspect", pflag.ExitOnError)
+	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given Go template")
+	flags.BoolVarP(&opts.size, "size", "s", false, "Display total file sizes")
+
+	flags.Parse(args)
+	opts.refs = flags.Args()
+
+	ctx := context.Background()
+	dockerCli := newDockerCli()
+
+	getRefFunc := func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().ContainerInspectWithRaw(ctx, ref, opts.size)
+	}
+
+	reader, writer := io.Pipe()
+	dec := json.NewDecoder(reader)
+
+	go func() {
+		inspect.Inspect(writer, opts.refs, opts.format, getRefFunc)
+	}()
+
+	// read open bracket
+	_, err = dec.Token()
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+
+	containers := make([]types.ContainerJSONBase, 0)
+
+	// while the array contains values
+	for dec.More() {
+		var container types.ContainerJSONBase
+		// decode an array value (Message)
+		err := dec.Decode(&container)
+		if err != nil {
+			L.RaiseError(err.Error())
+			return 0
+		}
+		containers = append(containers, container)
+	}
+
+	// read closing bracket
+	_, err = dec.Token()
+	if err != nil {
+		L.RaiseError(err.Error())
+		return 0
+	}
+
+	containersTbl := L.CreateTable(0, 0)
+
+	for _, container := range containers {
+		containersTbl.Append(ContainerJSONBaseToLuaTable(&container, L))
+	}
+
+	L.Push(containersTbl)
+	return 1
+}
 
 // dockerContainerList lists Docker containers and returns a Lua table (array)
 // containing the containers' descriptions.
@@ -139,4 +227,65 @@ func dockerContainerList(L *lua.LState) int {
 
 	L.Push(containersTbl)
 	return 1
+}
+
+//------------------------------
+// type to table functions
+//------------------------------
+
+func ContainerJSONBaseToLuaTable(c *types.ContainerJSONBase, L *lua.LState) *lua.LTable {
+	containerTbl := L.CreateTable(0, 0)
+	containerTbl.RawSetString("id", lua.LString(c.ID))
+	containerTbl.RawSetString("created", lua.LString(c.Created))
+	containerTbl.RawSetString("path", lua.LString(c.Path))
+	containerTbl.RawSetString("image", lua.LString(c.Image))
+
+	containerArgsTbl := L.CreateTable(0, 0)
+	for _, arg := range c.Args {
+		containerArgsTbl.Append(lua.LString(arg))
+	}
+	containerTbl.RawSetString("args", containerArgsTbl)
+
+	// TODO: State
+	containerStateTbl := L.CreateTable(0, 0)
+	containerStateTbl.RawSetString("status", lua.LString(c.State.Status))
+	containerStateTbl.RawSetString("running", lua.LBool(c.State.Running))
+	containerStateTbl.RawSetString("paused", lua.LBool(c.State.Paused))
+	containerStateTbl.RawSetString("restarting", lua.LBool(c.State.Restarting))
+	containerStateTbl.RawSetString("OOMKilled", lua.LBool(c.State.OOMKilled))
+	containerStateTbl.RawSetString("dead", lua.LBool(c.State.Dead))
+	containerStateTbl.RawSetString("pid", lua.LNumber(c.State.Pid))
+	containerStateTbl.RawSetString("exitCode", lua.LNumber(c.State.ExitCode))
+	containerStateTbl.RawSetString("error", lua.LString(c.State.Error))
+	containerStateTbl.RawSetString("startedAt", lua.LString(c.State.StartedAt))
+	containerStateTbl.RawSetString("finishedAt", lua.LString(c.State.FinishedAt))
+	if c.State.Health != nil {
+		containerStateHealthTbl := L.CreateTable(0, 0)
+		containerStateHealthTbl.RawSetString("status", lua.LString(c.State.Health.Status))
+		containerStateHealthTbl.RawSetString("failingStreak", lua.LNumber(c.State.Health.FailingStreak))
+		// TODO: Log ([]*HealthcheckResult)
+		containerStateTbl.RawSetString("health", containerStateHealthTbl)
+	}
+
+	containerTbl.RawSetString("resolvConfPath", lua.LString(c.ResolvConfPath))
+	containerTbl.RawSetString("hostnamePath", lua.LString(c.HostnamePath))
+	containerTbl.RawSetString("hostsPath", lua.LString(c.HostsPath))
+	containerTbl.RawSetString("logPath", lua.LString(c.LogPath))
+
+	// TODO: Node
+
+	containerTbl.RawSetString("name", lua.LString(c.Name))
+	containerTbl.RawSetString("restartCount", lua.LNumber(c.RestartCount))
+	containerTbl.RawSetString("driver", lua.LString(c.Driver))
+	containerTbl.RawSetString("mountLabel", lua.LString(c.MountLabel))
+	containerTbl.RawSetString("processLabel", lua.LString(c.ProcessLabel))
+	containerTbl.RawSetString("appArmorProfile", lua.LString(c.AppArmorProfile))
+
+	// TODO: ExecIDs
+	// TODO: HostConfig
+	// TODO: GraphDriver
+	// TODO: SizeRw
+	// TODO: SizeRootFs
+
+	return containerTbl
 }

@@ -78,6 +78,14 @@ func buildContainerListOptions(opts *psOptions) (*types.ContainerListOptions, er
 	return options, nil
 }
 
+// REQUIRED BY dockerContainerInspect
+
+type containerInspectOptions struct {
+	format string
+	size   bool
+	refs   []string
+}
+
 // REQUIRED BY dockerImageList
 
 type imagesOptions struct {

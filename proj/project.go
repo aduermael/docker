@@ -442,6 +442,7 @@ func populateLuaState(ls *lua.LState, p *Project) error {
 	// docker.container
 	dockerContainerLuaTable := ls.CreateTable(0, 0)
 	dockerContainerLuaTable.RawSetString("list", ls.NewFunction(dockerContainerList))
+	dockerContainerLuaTable.RawSetString("inspect", ls.NewFunction(dockerContainerInspect))
 	dockerLuaTable.RawSetString("container", dockerContainerLuaTable)
 
 	// docker.image
