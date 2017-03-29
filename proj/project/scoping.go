@@ -2,7 +2,6 @@ package project
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -19,12 +18,10 @@ func IsInProject() bool {
 }
 
 // StartInMemoryProxy ...
-// "unix:///var/run/docker.sock"
 func StartInMemoryProxy(proj Project, backendAddr string) (*proxy.Proxy, error) {
 	if proj == nil {
 		return nil, errors.New("can't create proxy outside of project")
 	}
-	fmt.Println("starting in-memory project proxy...")
 
 	// creates a docker API client that will be used internally by the proxy
 	dockerClient, err := client.NewClient(backendAddr, api.DefaultVersion, nil, nil) // TODO: gdevillele: review this
@@ -60,7 +57,7 @@ func StartInMemoryProxy(proj Project, backendAddr string) (*proxy.Proxy, error) 
 
 // // StopInMemoryProxy ...
 // func StopInMemoryProxy(proxy Proxy) {
-// 	// TODO: close connections &stop proxy
+// 	// TODO: close connections & stop proxy
 // }
 
 // NewScopedHttpClient ...

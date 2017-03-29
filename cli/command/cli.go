@@ -229,10 +229,10 @@ func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.
 		verStr = tmpStr
 	}
 
+	// TODO: gdevillele: use "verStr" variable
 	var httpClient *http.Client
 	if project.IsInProject() {
-		fmt.Println("🌴 is in project, starting proxy")
-		proxy, err := project.StartInMemoryProxy(project.CurrentProject, "unix:///var/run/docker.sock") // TODO: gdevillele: make this dynamic
+		proxy, err := project.StartInMemoryProxy(project.CurrentProject, host)
 		if err != nil {
 			return &client.Client{}, err
 		}
@@ -240,7 +240,6 @@ func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.
 		if err != nil {
 			return &client.Client{}, err
 		}
-		fmt.Println("🌴 no error :)")
 	} else {
 		httpClient, err = newHTTPClient(host, opts.TLSOptions)
 		if err != nil {
