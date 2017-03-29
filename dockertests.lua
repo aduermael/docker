@@ -28,20 +28,19 @@ function Tests:run()
 end
   
 function Tests:testDockerContainerInspect()
-	local testName = "docker.container.inspect"
-	self:start(testName)
+	self:start("docker.container.inspect()")
 
 	-- cleanup to avoid collisions
-	pcall(docker.silentCmd, 'rm -fv ' .. testName)
+	pcall(docker.silentCmd, 'rm -fv docker.container.inspect')
 	
-	local containerID = docker.silentCmd('run -ti -d --name ' .. testName .. ' alpine:3.5 ash')
+	local containerID = docker.silentCmd('run -ti -d --name docker.container.inspect alpine:3.5 ash')
 	local container = docker.container.inspect(containerID)[1]
 	if container.name ~= testName then
 		self:fail("container name is not the one expected")
 	end
 
 	-- cleanup
-	docker.silentCmd('rm -fv ' .. testName)
+	docker.silentCmd('rm -fv docker.container.inspect')
 
 	self:success()
 end
