@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/system"
-	project "github.com/docker/docker/proj/project"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -47,14 +46,6 @@ func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
-
-	// Add label to identify project if needed.
-	// Check whether we are in the context of a Docker project.
-	proj := project.CurrentProject
-	if proj != nil {
-		options.labels.Set("docker.project.id:" + proj.ID())
-		options.labels.Set("docker.project.name:" + proj.Name())
-	}
 
 	var in io.Reader = dockerCli.In()
 	if options.file != "-" {

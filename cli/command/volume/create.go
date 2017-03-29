@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
-	project "github.com/docker/docker/proj/project"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -59,14 +58,6 @@ func runCreate(dockerCli command.Cli, opts createOptions) error {
 		DriverOpts: opts.driverOpts.GetAll(),
 		Name:       opts.name,
 		Labels:     runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
-	}
-
-	// Add label to identify project if needed.
-	// Check whether we are in the context of a Docker project.
-	proj := project.CurrentProject
-	if proj != nil {
-		volReq.Labels["docker.project.id:"+proj.ID()] = ""
-		volReq.Labels["docker.project.name:"+proj.Name()] = ""
 	}
 
 	vol, err := client.VolumeCreate(context.Background(), volReq)

@@ -6,7 +6,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	project "github.com/docker/docker/proj/project"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -62,14 +61,6 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 	apiClient := dockerCli.Client()
 	createOpts := types.ServiceCreateOptions{}
-
-	// Add label to identify project if needed.
-	// Check whether we are in the context of a Docker project.
-	proj := project.CurrentProject
-	if proj != nil {
-		opts.labels.Set("docker.project.id:" + proj.ID())
-		opts.labels.Set("docker.project.name:" + proj.Name())
-	}
 
 	service, err := opts.ToService()
 	if err != nil {
