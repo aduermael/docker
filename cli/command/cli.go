@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/docker/docker/proj/project"
+
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
@@ -227,9 +229,23 @@ func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.
 		verStr = tmpStr
 	}
 
-	httpClient, err := newHTTPClient(host, opts.TLSOptions)
-	if err != nil {
-		return &client.Client{}, err
+	var httpClient *http.Client
+	if project.IsInProject() {
+		fmt.Println("🌴 is in project, starting proxy")
+		proxy, err := project.StartInMemoryProxy(project.CurrentProject, "unix:///var/run/docker.sock") // TODO: gdevillele: make this dynamic
+		if err != nil {
+			return &client.Client{}, err
+		}
+		httpClient, err = project.NewScopedHttpClient(proxy)
+		if err != nil {
+			return &client.Client{}, err
+		}
+		fmt.Println("🌴 no error :)")
+	} else {
+		httpClient, err = newHTTPClient(host, opts.TLSOptions)
+		if err != nil {
+			return &client.Client{}, err
+		}
 	}
 
 	return client.NewClient(host, verStr, httpClient, customHeaders)
