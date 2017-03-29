@@ -2,16 +2,34 @@
 -- images test
 --
 
-Tests = { id = "1" }
+Tests = { currentTest = "" }
 
-function Tests:run()
-  print("RUNNING tests...")
-  self:testDockerContainerInspect()
+function Tests:start(testName)
+	self.currentTest = testName
+	printf('⚙️  %s', self.currentTest)
 end
 
+function Tests:fail(message)
+	local str = self.currentTest
+	if message ~= nil then
+		str = self.currentTest .. ': ' .. message
+		return
+	end
+	printf('\r❌  %s\n', str)
+	error(str)
+end
+
+function Tests:success()
+	printf('\r👍  %s\n', self.currentTest)
+end
+
+function Tests:run()
+  self:testDockerContainerInspect()
+end
+  
 function Tests:testDockerContainerInspect()
 	local testName = "docker.container.inspect"
-	print('TEST: ' .. testName)
+	self:start(testName)
 
 	-- cleanup to avoid collisions
 	pcall(docker.silentCmd, 'rm -fv ' .. testName)
@@ -19,17 +37,15 @@ function Tests:testDockerContainerInspect()
 	local containerID = docker.silentCmd('run -ti -d --name ' .. testName .. ' alpine:3.5 ash')
 	local container = docker.container.inspect(containerID)[1]
 	if container.name ~= testName then
-		error("container name is not the one expected")
+		self:fail("container name is not the one expected")
 	end
 
 	-- cleanup
 	docker.silentCmd('rm -fv ' .. testName)
 
-	print("SUCCESS")
+	self:success()
 end
 
-
 local tests = Tests
-tests.id = "2"
 
 return tests

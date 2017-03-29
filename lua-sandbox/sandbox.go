@@ -45,6 +45,7 @@ func CreateSandbox() (*Sandbox, error) {
 
 	// io
 	pLuaState.Env.RawSetString("print", pLuaState.NewFunction(luaPrint))
+	pLuaState.Env.RawSetString("printf", pLuaState.NewFunction(luaPrintf))
 
 	// os
 	osLuaTable := pLuaState.CreateTable(0, 0)
