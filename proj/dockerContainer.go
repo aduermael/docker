@@ -20,35 +20,25 @@ import (
 // dockerContainerInspect inspects a container identified by its name or id
 // (or portion of it), it returns a Lua table full of information
 func dockerContainerInspect(L *lua.LState) int {
-	// TODO: don't consider flags
-	// and accept several strings instead
-	// Lua: docker.container.inspect(containerID1, containerID2, ...)
 
-	argsStr, found, err := sandbox.PopStringParam(L)
-	if err != nil {
-		L.RaiseError(err.Error())
-		return 0
+	opts := containerInspectOptions{
+		size:   false,
+		format: "",
+		refs:   make([]string, 0),
 	}
-	// no args: ok
 
-	args := make([]string, 0)
-
-	if found {
-		args, err = shellwords.Parse(argsStr)
+	for {
+		// identifiers can be names or ids
+		identifier, found, err := sandbox.PopStringParam(L)
 		if err != nil {
 			L.RaiseError(err.Error())
 			return 0
 		}
+		if !found {
+			break
+		}
+		opts.refs = append(opts.refs, identifier)
 	}
-
-	var opts containerInspectOptions
-
-	flags := pflag.NewFlagSet("dockerContainerInspect", pflag.ExitOnError)
-	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given Go template")
-	flags.BoolVarP(&opts.size, "size", "s", false, "Display total file sizes")
-
-	flags.Parse(args)
-	opts.refs = flags.Args()
 
 	ctx := context.Background()
 	dockerCli := newDockerCli()
@@ -65,7 +55,7 @@ func dockerContainerInspect(L *lua.LState) int {
 	}()
 
 	// read open bracket
-	_, err = dec.Token()
+	_, err := dec.Token()
 	if err != nil {
 		L.RaiseError(err.Error())
 		return 0
@@ -246,7 +236,6 @@ func ContainerJSONBaseToLuaTable(c *types.ContainerJSONBase, L *lua.LState) *lua
 	}
 	containerTbl.RawSetString("args", containerArgsTbl)
 
-	// TODO: State
 	containerStateTbl := L.CreateTable(0, 0)
 	containerStateTbl.RawSetString("status", lua.LString(c.State.Status))
 	containerStateTbl.RawSetString("running", lua.LBool(c.State.Running))
@@ -266,6 +255,7 @@ func ContainerJSONBaseToLuaTable(c *types.ContainerJSONBase, L *lua.LState) *lua
 		// TODO: Log ([]*HealthcheckResult)
 		containerStateTbl.RawSetString("health", containerStateHealthTbl)
 	}
+	containerTbl.RawSetString("state", containerStateTbl)
 
 	containerTbl.RawSetString("resolvConfPath", lua.LString(c.ResolvConfPath))
 	containerTbl.RawSetString("hostnamePath", lua.LString(c.HostnamePath))
@@ -274,7 +264,7 @@ func ContainerJSONBaseToLuaTable(c *types.ContainerJSONBase, L *lua.LState) *lua
 
 	// TODO: Node
 
-	containerTbl.RawSetString("name", lua.LString(c.Name))
+	containerTbl.RawSetString("name", lua.LString(strings.TrimPrefix(c.Name, "/")))
 	containerTbl.RawSetString("restartCount", lua.LNumber(c.RestartCount))
 	containerTbl.RawSetString("driver", lua.LString(c.Driver))
 	containerTbl.RawSetString("mountLabel", lua.LString(c.MountLabel))
