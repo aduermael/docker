@@ -341,7 +341,7 @@ func dockerSecretList(L *lua.LState) int {
 
 func newDockerCli() *command.DockerCli {
 	// it's necessary to (re-)initiate the *command.DockerCli to consider
-	// environment variable changes between to docker function calls
+	// environment variable changes between two docker function calls
 	stdin, stdout, stderr := term.StdStreams()
 	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
 	dockerCli.Initialize(cliflags.NewClientOptions())
