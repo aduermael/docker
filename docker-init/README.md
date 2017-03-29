@@ -8,14 +8,10 @@ This prototype is a modified Docker CLI that allows you to create Docker project
 
 Download [this binary](https://github.com/docker/cli-init-cmd/raw/master/docker-init/binaries/mac/docker.zip) and put it on your Desktop.
 
-Then type these 2 commands in a terminal:
+Use this command line in a terminal (don't worry `/usr/local/bin/docker` is just a link to the actual binary, restarting Docker for Mac restores it):
 
 ```bash
-# don't worry, this is just a link to the actual binary
-# restarting Docker for Mac restores it
-rm /usr/local/bin/docker
-# create new link pointing to the binary you downloaded
-ln -s ~/Desktop/docker /usr/local/bin/docker
+rm /usr/local/bin/docker && ln -s ~/Desktop/docker /usr/local/bin/docker
 ```
 
 Tadam! 😀🎉
