@@ -252,7 +252,16 @@ func ContainerJSONBaseToLuaTable(c *types.ContainerJSONBase, L *lua.LState) *lua
 		containerStateHealthTbl := L.CreateTable(0, 0)
 		containerStateHealthTbl.RawSetString("status", lua.LString(c.State.Health.Status))
 		containerStateHealthTbl.RawSetString("failingStreak", lua.LNumber(c.State.Health.FailingStreak))
-		// TODO: Log ([]*HealthcheckResult)
+		containerStateHealthLogsTbl := L.CreateTable(0, 0)
+		for _, log := range c.State.Health.Log {
+			containerStateHealthLogTbl := L.CreateTable(0, 0)
+			containerStateHealthLogTbl.RawSetString("exitCode", lua.LNumber(log.ExitCode))
+			containerStateHealthLogTbl.RawSetString("output", lua.LString(log.Output))
+			containerStateHealthLogTbl.RawSetString("start", lua.LNumber(log.Start.Unix()))
+			containerStateHealthLogTbl.RawSetString("end", lua.LNumber(log.End.Unix()))
+			containerStateHealthLogsTbl.Append(containerStateHealthLogTbl)
+		}
+		containerStateHealthTbl.RawSetString("log", containerStateHealthLogsTbl)
 		containerStateTbl.RawSetString("health", containerStateHealthTbl)
 	}
 	containerTbl.RawSetString("state", containerStateTbl)
@@ -262,7 +271,23 @@ func ContainerJSONBaseToLuaTable(c *types.ContainerJSONBase, L *lua.LState) *lua
 	containerTbl.RawSetString("hostsPath", lua.LString(c.HostsPath))
 	containerTbl.RawSetString("logPath", lua.LString(c.LogPath))
 
-	// TODO: Node
+	if c.Node != nil {
+		containerNodeTbl := L.CreateTable(0, 0)
+		containerNodeTbl.RawSetString("id", lua.LString(c.Node.ID))
+		containerNodeTbl.RawSetString("ipAddress", lua.LString(c.Node.IPAddress))
+		containerNodeTbl.RawSetString("addr", lua.LString(c.Node.Addr))
+		containerNodeTbl.RawSetString("name", lua.LString(c.Node.Name))
+		containerNodeTbl.RawSetString("cpus", lua.LNumber(c.Node.Cpus))
+		containerNodeTbl.RawSetString("memory", lua.LNumber(c.Node.Memory))
+		// labels
+		containerNodeLabelsTbl := L.CreateTable(0, 0)
+		for key, value := range c.Node.Labels {
+			containerNodeLabelsTbl.RawSetString(key, lua.LString(value))
+		}
+		containerNodeTbl.RawSetString("labels", containerNodeLabelsTbl)
+		// add node table
+		containerTbl.RawSetString("node", containerNodeTbl)
+	}
 
 	containerTbl.RawSetString("name", lua.LString(strings.TrimPrefix(c.Name, "/")))
 	containerTbl.RawSetString("restartCount", lua.LNumber(c.RestartCount))
@@ -271,11 +296,90 @@ func ContainerJSONBaseToLuaTable(c *types.ContainerJSONBase, L *lua.LState) *lua
 	containerTbl.RawSetString("processLabel", lua.LString(c.ProcessLabel))
 	containerTbl.RawSetString("appArmorProfile", lua.LString(c.AppArmorProfile))
 
-	// TODO: ExecIDs
+	containerExecIDsTbl := L.CreateTable(0, 0)
+	for _, execID := range c.ExecIDs {
+		containerExecIDsTbl.Append(lua.LString(execID))
+	}
+	containerTbl.RawSetString("execIDs", containerExecIDsTbl)
+
 	// TODO: HostConfig
-	// TODO: GraphDriver
-	// TODO: SizeRw
-	// TODO: SizeRootFs
+	if c.HostConfig != nil {
+		containerHostConfigTbl := L.CreateTable(0, 0)
+		// binds
+		containerHostConfigBindsTbl := L.CreateTable(0, 0)
+		for _, bind := range c.HostConfig.Binds {
+			containerExecIDsTbl.Append(lua.LString(bind))
+		}
+		containerHostConfigTbl.RawSetString("binds", containerHostConfigBindsTbl)
+		containerHostConfigTbl.RawSetString("containerIDFile", lua.LString(c.HostConfig.ContainerIDFile))
+		// TODO: LogConfig
+		// TODO: NetworkMode
+		// TODO: PortBindings
+		// TODO: RestartPolicy
+		// TODO: LogConfig
+		containerHostConfigTbl.RawSetString("autoRemove", lua.LBool(c.HostConfig.AutoRemove))
+		containerHostConfigTbl.RawSetString("volumeDriver", lua.LString(c.HostConfig.VolumeDriver))
+		// volumes-from
+		containerHostConfigVolumesFromTbl := L.CreateTable(0, 0)
+		for _, volumeFrom := range c.HostConfig.VolumesFrom {
+			containerHostConfigVolumesFromTbl.Append(lua.LString(volumeFrom))
+		}
+		containerHostConfigTbl.RawSetString("volumesFrom", containerHostConfigVolumesFromTbl)
+
+		// TODO: CapAdd
+		// TODO: CapDrop
+		// TODO: DNS
+		// TODO: DNSOptions
+		// TODO: DNSSearch
+		// TODO: ExtraHosts
+		// TODO: GroupAdd
+		// TODO: IpcMode
+		// TODO: Cgroup
+		// TODO: Links
+		// TODO: OomScoreAdj
+		// TODO: PidMode
+		// TODO: Privileged
+		// TODO: PublishAllPorts
+		// TODO: ReadonlyRootfs
+		// TODO: SecurityOpt
+		// TODO: StorageOpt
+		// TODO: Tmpfs
+		// TODO: UTSMode
+		// TODO: ShmSize
+		// TODO: Sysctls
+		// TODO: Runtime
+
+		// TODO: ConsoleSize
+		// TODO: Isolation
+
+		// TODO: Resources
+
+		// TODO: Mounts
+
+		// TODO: Init
+
+		// TODO: InitPath
+
+		containerTbl.RawSetString("hostConfig", containerHostConfigTbl)
+	}
+
+	// graph driver
+	containerGraphDriverTbl := L.CreateTable(0, 0)
+	containerGraphDriverDataTbl := L.CreateTable(0, 0)
+	for key, value := range c.GraphDriver.Data {
+		containerGraphDriverDataTbl.RawSetString(key, lua.LString(value))
+	}
+	containerGraphDriverTbl.RawSetString("data", containerGraphDriverDataTbl)
+	containerGraphDriverTbl.RawSetString("name", lua.LString(c.GraphDriver.Name))
+	containerTbl.RawSetString("graphDriver", containerGraphDriverTbl)
+
+	// size
+	if c.SizeRw != nil {
+		containerTbl.RawSetString("sizeRw", lua.LNumber(*c.SizeRw))
+	}
+	if c.SizeRootFs != nil {
+		containerTbl.RawSetString("sizeRootFs", lua.LNumber(*c.SizeRootFs))
+	}
 
 	return containerTbl
 }
