@@ -25,6 +25,7 @@ end
 
 function Tests:run()
   self:testDockerContainerInspect()
+  self:testProjectScope()
 end
   
 function Tests:testDockerContainerInspect()
@@ -41,6 +42,12 @@ function Tests:testDockerContainerInspect()
 
 	-- cleanup
 	docker.silentCmd('rm -fv docker.container.inspect')
+
+	self:success()
+end
+
+function Tests:testProjectScope()
+	self:start("project scope")
 
 	self:success()
 end
