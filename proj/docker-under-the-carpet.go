@@ -89,6 +89,13 @@ type containerInspectOptions struct {
 	refs   []string
 }
 
+// REQUIRED BY dockerImageInspect
+
+type imageInspectOptions struct {
+	format string
+	refs   []string
+}
+
 // REQUIRED BY dockerImageList
 
 type imagesOptions struct {

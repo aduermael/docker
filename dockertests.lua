@@ -42,10 +42,27 @@ function Tests:success()
 end
 
 function Tests:run()
-  self:testDockerContainerInspect()
-  self:testProjectScope()
-  self:testVolumeCreate()
-  self:testNetworkCreate()
+	self:testDockerImageInspect()
+	self:testDockerContainerInspect()
+	self:testProjectScope()
+	self:testVolumeCreate()
+	self:testNetworkCreate()
+end
+
+function Tests:testDockerImageInspect()
+	self:start("docker.image.inspect()")
+
+	self:cmd('pull alpine:3.5')
+	self:cmd('image tag alpine:3.5 myalpine')
+
+	local image = docker.image.inspect('myalpine')[1]
+
+	self:log("id: " .. image.id)
+	self:log("repo tags: " .. unpack(image.repoTags))
+
+	self:cmd('image rm myalpine')
+
+	self:success()
 end
   
 function Tests:testDockerContainerInspect()

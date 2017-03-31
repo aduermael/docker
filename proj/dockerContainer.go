@@ -17,8 +17,9 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// dockerContainerInspect inspects a container identified by its name or id
-// (or portion of it), it returns a Lua table full of information
+// dockerContainerInspect inspects on or several containers identified by
+// names or ids, it returns a Lua table array containing one table (or nil) for
+// each container
 func dockerContainerInspect(L *lua.LState) int {
 
 	opts := containerInspectOptions{

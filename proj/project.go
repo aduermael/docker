@@ -449,6 +449,7 @@ func populateLuaState(ls *lua.LState, p *Project) error {
 	dockerImageLuaTable := ls.CreateTable(0, 0)
 	// dockerImageLuaTable.RawSetString("build", ls.NewFunction(s.dockerImageBuild))
 	dockerImageLuaTable.RawSetString("list", ls.NewFunction(dockerImageList))
+	dockerImageLuaTable.RawSetString("inspect", ls.NewFunction(dockerImageInspect))
 	dockerLuaTable.RawSetString("image", dockerImageLuaTable)
 
 	// docker network
