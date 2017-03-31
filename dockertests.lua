@@ -44,7 +44,7 @@ end
 function Tests:run()
   self:testDockerContainerInspect()
   self:testProjectScope()
-  self:testVolumeCreateStdout()
+  self:testVolumeCreate()
 end
   
 function Tests:testDockerContainerInspect()
@@ -160,8 +160,9 @@ end
 
 -- VOLUME --
 
--- check that volume create prints the correct output
-function Tests:testVolumeCreateStdout()
+-- check that volume create works 
+-- and prints the correct output
+function Tests:testVolumeCreate()
 	self:start('volume create output')
 	project.id = 'com.docker.test.scope.id.1'
 	local volumeName = 'foo'
