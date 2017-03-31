@@ -45,6 +45,7 @@ function Tests:run()
   self:testDockerContainerInspect()
   self:testProjectScope()
   self:testVolumeCreate()
+  self:testNetworkCreate()
 end
   
 function Tests:testDockerContainerInspect()
@@ -158,19 +159,30 @@ function Tests:testProjectScope()
 	self:success()
 end
 
--- VOLUME --
+-- Volume --
 
 -- check that volume create works 
 -- and prints the correct output
 function Tests:testVolumeCreate()
 	self:start('volume create output')
 	project.id = 'com.docker.test.scope.id.1'
-	local volumeName = 'foo'
-	local out = self:cmd('volume create ' .. volumeName)
-	if out ~= volumeName then
+	local name = 'foo'
+	local out = self:cmd('volume create ' .. name)
+	if out ~= name then
 		self:fail('volume create did not print the volume\'s id')
 	end
-	self:cmd('volume rm ' .. volumeName)
+	self:cmd('volume rm ' .. name)
+	self:success()
+end
+
+-- Network --
+
+function Tests:testNetworkCreate()
+	self:start('network create output')
+	project.id = 'com.docker.test.scope.id.1'
+	local name = 'foo'
+	self:cmd('network create ' .. name)
+	self:cmd('network rm ' .. name)
 	self:success()
 end
 
