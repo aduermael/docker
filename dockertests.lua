@@ -44,6 +44,7 @@ end
 function Tests:run()
   self:testDockerContainerInspect()
   self:testProjectScope()
+  self:testVolumeCreateStdout()
 end
   
 function Tests:testDockerContainerInspect()
@@ -154,6 +155,21 @@ function Tests:testProjectScope()
 		self:cmd('rm -f ' .. container.id)
 	end
 
+	self:success()
+end
+
+-- VOLUME --
+
+-- check that volume create prints the correct output
+function Tests:testVolumeCreateStdout()
+	self:start('volume create output')
+	project.id = 'com.docker.test.scope.id.1'
+	local volumeName = 'foo'
+	local out = self:cmd('volume create ' .. volumeName)
+	if out ~= volumeName then
+		self:fail('volume create did not print the volume\'s id')
+	end
+	self:cmd('volume rm ' .. volumeName)
 	self:success()
 end
 
