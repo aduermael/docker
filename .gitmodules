@@ -1,0 +1,4 @@
+[submodule "vendor/github.com/docker/engine-api-proxy"]
+	path = vendor/github.com/docker/engine-api-proxy
+	url = git@github.com:docker/engine-api-proxy.git
+	branch = dev1-integration
