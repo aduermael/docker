@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/analytics"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
@@ -17,6 +18,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/term"
+	projectImpl "github.com/docker/docker/proj"
+	"github.com/docker/docker/proj/project"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -40,6 +43,15 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 			return dockerCli.ShowHelp(cmd, args)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+
+			completeCmdName := cmd.Name()
+			cobracmd := cmd
+			for cobracmd.HasParent() {
+				cobracmd = cobracmd.Parent()
+				completeCmdName = cobracmd.Name() + " " + completeCmdName
+			}
+			analytics.Event("command", map[string]interface{}{"name": completeCmdName, "lua": false})
+
 			// daemon command is special, we redirect directly to another binary
 			if cmd.Name() == "daemon" {
 				return nil
@@ -52,6 +64,7 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 			}
 			return isSupported(cmd, dockerCli)
 		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 	}
 	cli.SetupRootCommand(cmd)
 
@@ -159,12 +172,85 @@ func noArgs(cmd *cobra.Command, args []string) error {
 }
 
 func main() {
+
+	// check if it is an analytics event process
+	if os.Getenv("DOCKERSCRIPT_ANALYTICS") == "1" {
+		analytics.ReportAnalyticsEvent()
+		os.Exit(0)
+	}
+
+	// TODO: document this
+	os.Setenv("DOCKER_HIDE_LEGACY_COMMANDS", "1")
+
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
 	logrus.SetOutput(stderr)
 
 	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
+
+	// see if we're in the context of a Docker project or not
+	proj, err := projectImpl.LoadForWd()
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		os.Exit(1)
+	}
+
+	if proj != nil {
+		// store global reference to current project
+		project.CurrentProject = proj
+
+		err := project.SaveInRecentProjects(proj)
+		if err != nil {
+			logrus.Fatalln(err)
+		}
+	}
+
 	cmd := newDockerCommand(dockerCli)
+
+	// sandbox is used only if we are in the context of a docker project
+	if proj != nil && len(os.Args) > 1 {
+		cmdName := os.Args[1]
+
+		// see if the function has been defined for this project
+		projectCommandExists, err := proj.CommandExists(cmdName)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			os.Exit(1)
+		}
+
+		if projectCommandExists {
+
+			mainCmds := cmd.Commands()
+			for _, mainCmd := range mainCmds {
+				if cmdName == mainCmd.Name() {
+					// check if this override is allowed
+					if projectImpl.IsCommandOverrideAllowed(cmdName) == false {
+						errorMessage := "error: " + cmdName + " can't be overridden.\n" +
+							"this is the list of docker commands that can be overridden:\n" +
+							strings.Join(projectImpl.CommandsAllowedToBeOverridden, ", ")
+						fmt.Fprintln(stderr, errorMessage)
+						os.Exit(1)
+					}
+					break
+				}
+			}
+
+			luaArgs := append([]string{cmdName}, os.Args[2:]...)
+			found, err := proj.Exec(luaArgs)
+			if found {
+				if err != nil {
+					fmt.Fprintln(stderr, err.Error())
+					os.Exit(1)
+				}
+				analytics.Event("command", map[string]interface{}{"name": "docker " + cmdName, "lua": true})
+				return
+			}
+			// NOTE: if Lua parsing in proj.CommandExists is working as expected
+			// we should never reach that specific point.
+			// because found should always be true.
+		}
+		// project command doesn't exist
+	}
 
 	if err := cmd.Execute(); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
