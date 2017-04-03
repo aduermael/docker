@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/client"
 	proxyFakes "github.com/docker/engine-api-proxy/fakes"
 	proxyPipeline "github.com/docker/engine-api-proxy/pipeline"
@@ -18,13 +17,13 @@ func IsInProject() bool {
 }
 
 // StartInMemoryProxy ...
-func StartInMemoryProxy(proj Project, backendAddr string) (*proxy.Proxy, error) {
+func StartInMemoryProxy(proj Project, backendAddr, apiVersion string) (*proxy.Proxy, error) {
 	if proj == nil {
 		return nil, errors.New("can't create proxy outside of project")
 	}
 
 	// creates a docker API client that will be used internally by the proxy
-	dockerClient, err := client.NewClient(backendAddr, api.DefaultVersion, nil, nil) // TODO: gdevillele: review this
+	dockerClient, err := client.NewClient(backendAddr, apiVersion, nil, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -229,10 +229,9 @@ func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.
 		verStr = tmpStr
 	}
 
-	// TODO: gdevillele: use "verStr" variable
 	var httpClient *http.Client
 	if project.IsInProject() {
-		proxy, err := project.StartInMemoryProxy(project.CurrentProject, host)
+		proxy, err := project.StartInMemoryProxy(project.CurrentProject, host, verStr)
 		if err != nil {
 			return &client.Client{}, err
 		}
