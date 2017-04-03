@@ -2,11 +2,14 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	project "github.com/docker/docker/proj/project"
 )
 
 // SetupRootCommand sets default usage, help, and error handling for the
@@ -17,6 +20,11 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 	cobra.AddTemplateFunc("operationSubCommands", operationSubCommands)
 	cobra.AddTemplateFunc("managementSubCommands", managementSubCommands)
 	cobra.AddTemplateFunc("wrappedFlagUsages", wrappedFlagUsages)
+
+	cobra.AddTemplateFunc("hasProjectDefinedCommands", hasProjectDefinedCommands)
+	cobra.AddTemplateFunc("projectDefinedCommands", projectDefinedCommands)
+
+	cobra.AddTemplateFunc("swarmCommands", swarmCommands)
 
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
@@ -69,6 +77,16 @@ func hasManagementSubCommands(cmd *cobra.Command) bool {
 	return len(managementSubCommands(cmd)) > 0
 }
 
+// hasProjectDefinedCommands indicates whether user-defined commands are available.
+// For now, they are only available in the context of a docker project.
+func hasProjectDefinedCommands(cmd *cobra.Command) bool {
+	return len(GetProjectDefinedFunctions()) > 0
+}
+
+func projectDefinedCommands(cmd *cobra.Command) []UDFunction {
+	return GetProjectDefinedFunctions()
+}
+
 func operationSubCommands(cmd *cobra.Command) []*cobra.Command {
 	cmds := []*cobra.Command{}
 	for _, sub := range cmd.Commands() {
@@ -91,10 +109,73 @@ func managementSubCommands(cmd *cobra.Command) []*cobra.Command {
 	cmds := []*cobra.Command{}
 	for _, sub := range cmd.Commands() {
 		if sub.IsAvailableCommand() && sub.HasSubCommands() {
-			cmds = append(cmds, sub)
+			if isCommandSwarmRelated(sub) == false {
+				cmds = append(cmds, sub)
+			}
 		}
 	}
 	return cmds
+}
+
+func swarmCommands(cmd *cobra.Command) []*cobra.Command {
+	cmds := []*cobra.Command{}
+	for _, sub := range cmd.Commands() {
+		if sub.IsAvailableCommand() && sub.HasSubCommands() {
+			if isCommandSwarmRelated(sub) {
+				cmds = append(cmds, sub)
+			}
+		}
+	}
+	return cmds
+}
+
+//////////
+
+// isCommandSwarmRelated ...
+func isCommandSwarmRelated(cmd *cobra.Command) bool {
+	if cmd.Name() == "node" ||
+		cmd.Name() == "secret" ||
+		cmd.Name() == "service" ||
+		cmd.Name() == "stack" ||
+		cmd.Name() == "swarm" {
+		return true
+	}
+	return false
+}
+
+// UDFunction partially describes a user-define function written in Lua
+type UDFunction struct {
+	Name        string
+	Description string
+	Padding     int
+}
+
+// GetProjectDefinedFunctions lists project Dockerscript top level functions
+func GetProjectDefinedFunctions() []UDFunction {
+	result := make([]UDFunction, 0)
+
+	if project.CurrentProject == nil {
+		return result
+	}
+
+	proj := project.CurrentProject
+
+	projectCmds, err := proj.Commands()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+
+	for _, projectCmd := range projectCmds {
+		f := UDFunction{
+			Name:        projectCmd.Name,
+			Description: projectCmd.ShortDescription,
+			Padding:     11,
+		}
+		result = append(result, f)
+	}
+
+	return result
 }
 
 var usageTemplate = `Usage:
@@ -122,7 +203,17 @@ Options:
 {{ wrappedFlagUsages . | trimRightSpace}}
 
 {{- end}}
+
+
 {{- if hasManagementSubCommands . }}
+
+{{- if hasProjectDefinedCommands . }}
+
+Project Commands:
+{{- range projectDefinedCommands . }}
+  {{rpad .Name .Padding }} {{.Description}}
+{{- end}}
+{{- end}}
 
 Management Commands:
 
@@ -130,7 +221,14 @@ Management Commands:
   {{rpad .Name .NamePadding }} {{.Short}}
 {{- end}}
 
+Swarm Commands:
+
+{{- range swarmCommands . }}
+  {{rpad .Name .NamePadding }} {{.Short}}
 {{- end}}
+
+{{- end}}
+
 {{- if hasSubCommands .}}
 
 Commands:
