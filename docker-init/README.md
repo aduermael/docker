@@ -20,13 +20,11 @@ To uninstall, just restart Docker for Mac, the symlink will be restored.
 
 ### Docker for Windows
 
-No precise instructions yet. Just use [this binary](https://github.com/docker/cli-init-cmd/raw/master/docker-init/binaries/windows/docker.zip).
+No precise instructions yet. Just use [this binary](https://github.com/docker/cli-init-cmd/raw/master/docker-init/binaries/windows/docker.zip) (only bundles the CLI, not the daemon).
 
 ### Linux
 
-🤓 - Do you really need instructions if you're on Linux?
-
-You do need the binaries though: [linux](https://github.com/docker/cli-init-cmd/raw/master/docker-init/binaries/linux/docker.zip) or [linux-arm](https://github.com/docker/cli-init-cmd/raw/master/docker-init/binaries/linux-arm/docker.zip) (only bundles the CLI, not the daemon)
+No precise instructions. Just use [linux](https://github.com/docker/cli-init-cmd/raw/master/docker-init/binaries/linux/docker.zip) or [linux-arm](https://github.com/docker/cli-init-cmd/raw/master/docker-init/binaries/linux-arm/docker.zip) (only bundles the CLI, not the daemon).
 
 
 ## How to use it?
@@ -41,7 +39,9 @@ You can see how it works if you open `dockerproject.lua` that's been created whe
 
 😁 - You can create your own Docker commands!
 
-These scripts are executed in a Lua sandbox. A few functions are available in there for you to build your own:
+These scripts are executed in a Lua sandbox. 
+
+#### Functions and variables available in the Lua sandbox:
 
 - Variables about your project:
 
@@ -78,6 +78,10 @@ These scripts are executed in a Lua sandbox. A few functions are available in th
 
 	-- list functions accept same arguments as corresponding Docker commands:
 	containers = docker.container.list('--filter label=docker.project.id=' .. project.id)
+	
+	-- functions to inspect Docker items:
+	local containers = docker.container.inspect("id1", "id2", ...)
+	local images = docker.image.inspect("id1", "id2", ...)
 	```
 
 - Things that you usually find in Lua environments:
