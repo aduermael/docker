@@ -1,5 +1,13 @@
 # Changelog
 
+### Version 0.0.7 - 04/03/2017
+
+- Project scoping now implemented both ways (when creating and querying Docker entities). It's not required anymore to filter "manually" when listing containers, volumes, etc.
+- New functions in the Lua sandbox:
+	- `docker.container.inspect`
+	- `docker.image.inspect`
+	- fixed `require`
+
 ### Version 0.0.6 - 03/25/2017
 
 - CLI was crashing when working outside a project
