@@ -45,8 +45,8 @@ function Tests:run()
 	self:testDockerImageInspect()
 	self:testDockerContainerInspect()
 	self:testProjectScope()
-	self:testVolumeCreate()
 	self:testNetwork()
+	self:testVolume()
 end
 
 function Tests:testDockerImageInspect()
@@ -57,11 +57,7 @@ function Tests:testDockerImageInspect()
 
 	local image = docker.image.inspect('myalpine')[1]
 
-	self:log("id: " .. image.id)
-	self:log("repo tags: " .. unpack(image.repoTags))
-
 	self:cmd('image rm myalpine')
-
 	self:success()
 end
   
@@ -180,15 +176,33 @@ end
 
 -- check that volume create works 
 -- and prints the correct output
-function Tests:testVolumeCreate()
-	self:start('volume create output')
-	project.id = 'com.docker.test.scope.id.1'
-	local name = 'foo'
-	local out = self:cmd('volume create ' .. name)
-	if out ~= name then
+function Tests:testVolume()
+	self:start('volumes')
+
+	local scope1 = "com.docker.test.scope.id.1"
+	local scope2 = "com.docker.test.scope.id.2"
+	local volumeName1 = 'foo'
+
+	self:log('create volume named "' .. volumeName1.. '" in scope #1')
+	project.id = scope1
+	local out = self:cmd('volume create ' .. volumeName1)
+	if out ~= volumeName1 then
 		self:fail('volume create did not print the volume\'s id')
 	end
-	self:cmd('volume rm ' .. name)
+
+	-- create volume with same name in different scope
+	self:log('create volume named "' .. volumeName1 .. '" in scope #2')
+	project.id = scope2
+	local out = self:cmd('volume create ' .. volumeName1)
+	if out ~= volumeName1 then
+		self:fail('volume create did not print the volume\'s id')
+	end
+
+	self:log('remove volumes')
+	project.id = scope1
+	self:cmd('volume rm ' .. volumeName1)
+	project.id = scope2
+	self:cmd('volume rm ' .. volumeName1)
 	self:success()
 end
 
