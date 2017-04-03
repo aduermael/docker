@@ -46,7 +46,7 @@ function Tests:run()
 	self:testDockerContainerInspect()
 	self:testProjectScope()
 	self:testVolumeCreate()
-	self:testNetworkCreate()
+	self:testNetwork()
 end
 
 function Tests:testDockerImageInspect()
@@ -194,12 +194,65 @@ end
 
 -- Network --
 
-function Tests:testNetworkCreate()
-	self:start('network create output')
-	project.id = 'com.docker.test.scope.id.1'
-	local name = 'foo'
-	self:cmd('network create ' .. name)
-	self:cmd('network rm ' .. name)
+function Tests:cleanNetworks(scope1, scope2)
+	-- clean both test scopes
+	project.id = scope1
+	networks = docker.network.list()
+	for i,network in ipairs(networks) do
+		self:cmd('network rm ' .. network.id)
+	end
+	project.id = scope2
+	networks = docker.network.list()
+	for i,network in ipairs(networks) do
+		self:cmd('network rm ' .. network.id)
+	end
+
+	-- make sure both scopes are clean
+	project.id = scope1
+	networks = docker.network.list()
+	if #networks ~= 0 then
+		self:fail('scope #1 not clean')
+	end
+	project.id = scope2
+	networks = docker.network.list()
+	if #networks ~= 0 then
+		self:fail('scope #2 not clean')
+	end
+end
+
+function Tests:testNetwork()
+	self:start('networks')
+
+	local scope1 = "com.docker.test.scope.id.1"
+	local scope2 = "com.docker.test.scope.id.2"
+	local networks = nil
+
+	self:log("cleanup for both test scopes")
+	self:cleanNetworks(scope1, scope2)
+
+	self:log("create networks in both scopes")
+
+	-- create network 'foo' in scope1
+	project.id = scope1
+	self:cmd('network create foo')
+	self:cmd('network create bar')
+	self:cmd('network create baz')
+	networks = docker.network.list()
+	if #networks ~= 3 then
+		self:fail('expecting 3 network in scope #1')
+	end
+	project.id = scope2
+	self:cmd('network create foo')
+	self:cmd('network create bar')
+	networks = docker.network.list()
+	if #networks ~= 2 then
+		self:fail('expecting 2 network in scope #2')
+	end
+	-- cleanup
+	self:cleanNetworks(scope1, scope2)
+
+	-- TODO: insert more tests here
+
 	self:success()
 end
 
